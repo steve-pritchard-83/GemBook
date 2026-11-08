@@ -697,8 +697,9 @@ export function StoryFlipbook({
           <div className="pointer-events-none absolute bottom-1.5 left-1.5 h-5 w-5 rounded-bl-xl border-b-2 border-l-2 border-amber-400/50" />
           <div className="pointer-events-none absolute bottom-1.5 right-1.5 h-5 w-5 rounded-br-xl border-b-2 border-r-2 border-amber-400/50" />
 
-          {/* Center Book Spine Crease Shadow */}
-          <div className="pointer-events-none absolute inset-y-2 left-1/2 z-30 w-10 -translate-x-1/2 bg-gradient-to-r from-transparent via-black/35 to-transparent" />
+          {/* Subtle Center Book Spine Crease Line (strictly inside the inner gutter) */}
+          <div className="pointer-events-none absolute inset-y-3 left-1/2 z-30 w-3 -translate-x-1/2 bg-gradient-to-r from-amber-950/15 via-amber-950/35 to-amber-950/15" />
+          <div className="pointer-events-none absolute inset-y-3 left-1/2 z-30 w-px -translate-x-1/2 bg-amber-950/40" />
 
           {/* Interactive 2-Page Spread Flipbook */}
           <HTMLFlipBook
@@ -736,7 +737,7 @@ export function StoryFlipbook({
                 PAGE INDEX 0 (Spread 0 Left): Dedication Frontispiece
                ========================================================= */}
             <FlipPage className="rounded-l-xl bg-gradient-to-br from-[#fbf4e4] via-[#f5e8cc] to-[#ead5ad] text-parchment-900 shadow-inner">
-              <div className="flex h-full flex-col items-center justify-between border-r border-amber-900/15 p-6 sm:p-10 text-center">
+              <div className="flex h-full flex-col items-center justify-between border-r border-amber-900/15 py-6 pl-6 pr-8 sm:py-10 sm:pl-8 sm:pr-10 text-center">
                 <div className="mt-4 flex items-center gap-2 text-amber-800/70">
                   <Sparkles className="h-4 w-4" />
                   <span className="font-display text-xs tracking-[0.25em] uppercase">
@@ -771,7 +772,7 @@ export function StoryFlipbook({
                 PAGE INDEX 1 (Spread 0 Right): Story Cover Artwork
                ========================================================= */}
             <FlipPage className="rounded-r-xl bg-gradient-to-bl from-[#fbf4e4] via-[#f5e8cc] to-[#ead5ad] text-parchment-900">
-              <div className="relative flex h-full flex-col items-center justify-between p-5 sm:p-8">
+              <div className="relative flex h-full flex-col items-center justify-between py-5 pl-8 pr-5 sm:py-8 sm:pl-10 sm:pr-8">
                 <div className="relative h-[78%] w-full overflow-hidden rounded-2xl border-4 border-amber-700/40 shadow-xl">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
@@ -816,26 +817,30 @@ export function StoryFlipbook({
                     isLeftPage ? "rounded-l-xl" : "rounded-r-xl"
                   } bg-gradient-to-b from-[#fdf8ec] via-[#f8eed9] to-[#efe0c1] text-[#2b1e12]`}
                 >
-                  {/* Spine inner shadow for realism */}
+                  {/* Soft, narrow inner spine shading that stays inside the gutter padding */}
                   <div
-                    className={`pointer-events-none absolute inset-y-0 z-20 w-8 ${
+                    className={`pointer-events-none absolute inset-y-0 z-10 w-4 ${
                       isLeftPage
-                        ? "right-0 bg-gradient-to-l from-amber-950/18 to-transparent"
-                        : "left-0 bg-gradient-to-r from-amber-950/18 to-transparent"
+                        ? "right-0 bg-gradient-to-l from-amber-950/15 to-transparent"
+                        : "left-0 bg-gradient-to-r from-amber-950/15 to-transparent"
                     }`}
                   />
 
-                  {/* Active Reading Golden Highlight Border */}
+                  {/* Active Reading Golden Highlight Border — extra inner gutter padding (pr on left page, pl on right page) */}
                   <div
-                    className={`relative flex h-full flex-col justify-between p-4 sm:p-6 transition-all duration-500 ${
+                    className={`relative z-20 flex h-full w-full flex-col justify-between py-4 sm:py-5 transition-all duration-500 ${
+                      isLeftPage
+                        ? "pl-4 pr-7 sm:pl-6 sm:pr-9"
+                        : "pl-7 pr-4 sm:pl-9 sm:pr-6"
+                    } ${
                       isBeingRead
                         ? "ring-4 ring-inset ring-amber-400/80 bg-amber-100/20"
                         : ""
                     }`}
                   >
                     {/* Page Header: Chapter Title & Read-This-Page Button */}
-                    <div className="flex items-center justify-between border-b border-amber-900/15 pb-1.5">
-                      <span className="font-display text-[11px] sm:text-xs font-bold tracking-wider uppercase text-amber-900/75">
+                    <div className="flex items-center justify-between gap-2 border-b border-amber-900/15 pb-1.5">
+                      <span className="truncate font-display text-[11px] sm:text-xs font-bold tracking-wider uppercase text-amber-900/80">
                         {page.chapterTitle || `Page ${page.pageNumber}`}
                       </span>
 
@@ -844,7 +849,7 @@ export function StoryFlipbook({
                           e.stopPropagation();
                           handleReadSinglePage(flipPageIndex, page);
                         }}
-                        className={`flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold transition ${
+                        className={`shrink-0 flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold transition ${
                           isBeingRead
                             ? "bg-amber-500 text-slate-950 shadow-sm animate-pulse"
                             : "bg-amber-900/10 text-amber-900 hover:bg-amber-900/20"
@@ -879,15 +884,15 @@ export function StoryFlipbook({
                           : "bg-amber-950/[0.04] border border-amber-900/10"
                       }`}
                     >
-                      <p className="font-serif text-[13px] sm:text-[15px] md:text-[16px] leading-relaxed text-[#2a1d11]">
-                        <span className="float-left mr-1.5 font-display text-xl sm:text-2xl font-bold leading-none text-amber-800">
+                      <p className="font-serif text-[13px] sm:text-[15px] md:text-[15.5px] leading-relaxed text-[#2a1d11]">
+                        <span className="font-display text-lg sm:text-xl font-bold text-amber-800">
                           {page.text.charAt(0)}
                         </span>
                         {page.text.slice(1)}
                       </p>
                     </div>
 
-                    {/* Page Footer Number & Corner Flick Hint */}
+                    {/* Page Footer Number */}
                     <div className="mt-1 flex items-center justify-between text-[11px] font-medium text-amber-900/60">
                       <span>{isLeftPage ? `Page ${page.pageNumber}` : ""}</span>
                       <span className="font-display tracking-widest text-amber-800/50">
