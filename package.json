@@ -8,8 +8,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "test": "node scripts/verify-app.mjs",
     "generate-audio": "node scripts/generate-audio.mjs",
-    "generate-casper-images": "node scripts/generate-casper-gemini.mjs"
+    "generate-casper-images": "node scripts/generate-casper-gemini.mjs",
+    "generate-coloring-pages": "node scripts/generate-coloring-pages.mjs"
   },
   "dependencies": {
     "canvas-confetti": "^1.9.3",

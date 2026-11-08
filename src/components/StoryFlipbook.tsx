@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import confetti from "canvas-confetti";
 import { Story, StoryPage } from "@/data/stories";
+import { AUDIO_SENTENCE_TIMINGS } from "@/data/audioTimings";
 import { soundEngine } from "@/utils/soundEffects";
 import { FlipbookHud } from "@/components/FlipbookHud";
 import { ColorByNumbersCanvas } from "@/components/ColorByNumbersCanvas";
@@ -941,16 +942,25 @@ export function StoryFlipbook({
               const isBeingRead = activeReadingPageIdx === flipPageIndex;
               const sentences = pageSentences[idx] || [page.text];
 
-              // Calculate which sentence is currently being spoken based on character-weighted audio progress
+              // Calculate which sentence is currently being spoken using acoustic pause-detected timings
+              // (falling back to character-weighted progress if timing metadata is unavailable)
+              const timingMeta = AUDIO_SENTENCE_TIMINGS[page.audioUrl];
               const totalChars = page.text.length || 1;
               let cumulativeChars = 0;
               const activeSentenceIdx = isBeingRead
-                ? sentences.findIndex((s) => {
-                    cumulativeChars += s.length + 1;
-                    return (
-                      activeReadingProgress <= cumulativeChars / totalChars
-                    );
-                  })
+                ? timingMeta &&
+                  timingMeta.duration > 0 &&
+                  timingMeta.sentenceEndTimes.length === sentences.length
+                  ? timingMeta.sentenceEndTimes.findIndex(
+                      (endSec) =>
+                        activeReadingProgress * timingMeta.duration <= endSec
+                    )
+                  : sentences.findIndex((s) => {
+                      cumulativeChars += s.length + 1;
+                      return (
+                        activeReadingProgress <= cumulativeChars / totalChars
+                      );
+                    })
                 : -1;
 
               return (

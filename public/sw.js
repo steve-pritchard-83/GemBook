@@ -1,5 +1,5 @@
-const SHELL_CACHE_NAME = "charlotte-gembook-shell-v4";
-const MEDIA_CACHE_NAME = "charlotte-gembook-media-v4";
+const SHELL_CACHE_NAME = "charlotte-gembook-shell-v5";
+const MEDIA_CACHE_NAME = "charlotte-gembook-media-v5";
 
 // Lightweight app shell & book covers precached immediately on install
 const SHELL_PRECACHE_ASSETS = [

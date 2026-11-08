@@ -1,9 +1,31 @@
 import fs from "node:fs";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 import { MsEdgeTTS, OUTPUT_FORMAT } from "msedge-tts";
 
-// Calm, warm Australian female neural voice
-const VOICE = "en-AU-NatashaNeural";
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+
+const envPath = path.join(process.cwd(), ".env.local");
+const envContent = fs.existsSync(envPath)
+  ? fs.readFileSync(envPath, "utf8")
+  : "";
+const keyMatch = envContent.match(/GEMINI_API_KEY="?([^"\r\n]+)"?/);
+const API_KEY = process.env.GEMINI_API_KEY || (keyMatch ? keyMatch[1].trim() : "");
+
+// Locate ffmpeg binary (Windows WinGet path or system PATH)
+const WIN_FFMPEG =
+  "C:\\Users\\steve_tzmi3fh\\AppData\\Local\\Microsoft\\WinGet\\Packages\\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\\ffmpeg-9.0.2-full_build\\bin\\ffmpeg.exe";
+const FFMPEG_BIN = fs.existsSync(WIN_FFMPEG) ? WIN_FFMPEG : "ffmpeg";
+
+// Studio-quality expressive controllable Gemini TTS models (support Australian style prompt cleanly)
+const GEMINI_TTS_MODELS = [
+  "gemini-2.5-flash-preview-tts",
+  "gemini-3.1-flash-tts-preview",
+];
+
+const GEMINI_VOICE_NAME = "Aoede";
+const DIRECTOR_STYLE_PROMPT =
+  "Speak in a warm, gentle, natural Australian female bedtime storyteller voice, unhurried, tender, and soothing for a 7-year-old girl named Charlotte:";
 
 const STORY_AUDIO_SEGMENTS = [
   {
@@ -15,7 +37,7 @@ const STORY_AUDIO_SEGMENTS = [
       },
       {
         filename: "page-1.mp3",
-        text: "Rain pattered softly against the attic window as seven-year-old Charlotte brushed a lock of golden-blonde hair behind her ear. Resting on her velvet quilt was an ancient copper-bound storybook that seemed to hum with a warm, sleepy light. On its cover gleamed the golden AURYN emblem... two gentle serpents twined in an endless circle of dreams.",
+        text: "Rain pattered softly against the attic window as seven-year-old Charlotte brushed a lock of golden-blonde hair behind her ear. Resting on her velvet quilt was an ancient copper-bound storybook that seemed to hum with a warm, sleepy light. On its cover gleamed the golden Auryn emblem... two gentle serpents twined in an endless circle of dreams.",
       },
       {
         filename: "page-2.mp3",
@@ -27,7 +49,7 @@ const STORY_AUDIO_SEGMENTS = [
       },
       {
         filename: "page-4.mp3",
-        text: "Beside the shimmering Silver Mountains, young Atreyu greeted Charlotte with a gentle bow, his loyal white horse Artax nuzzling her hand. The Nothing is only a shadow when children forget to dream, Atreyu said softly, pointing to the golden AURYN medallion now resting over Charlotte's lavender cardigan. Your imagination can light up all of Fantasia.",
+        text: "Beside the shimmering Silver Mountains, young Atreyu greeted Charlotte with a gentle bow, his loyal white horse Artax nuzzling her hand. The Nothing is only a shadow when children forget to dream, Atreyu said softly, pointing to the golden Auryn medallion now resting over Charlotte's lavender cardigan. Your imagination can light up all of Fantasia.",
       },
       {
         filename: "page-5.mp3",
@@ -167,8 +189,195 @@ const STORY_AUDIO_SEGMENTS = [
   },
 ];
 
+let modelCursor = 0;
+
+async function generateGeminiAudioMp3(text, outMp3Path) {
+  for (let attempt = 0; attempt < GEMINI_TTS_MODELS.length * 2; attempt++) {
+    const model = GEMINI_TTS_MODELS[modelCursor % GEMINI_TTS_MODELS.length];
+    modelCursor++;
+
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${API_KEY}`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              {
+                text: `${DIRECTOR_STYLE_PROMPT}\n\n${text}`,
+              },
+            ],
+          },
+        ],
+        generationConfig: {
+          responseModalities: ["AUDIO"],
+          speechConfig: {
+            voiceConfig: {
+              prebuiltVoiceConfig: {
+                voiceName: GEMINI_VOICE_NAME,
+              },
+            },
+          },
+        },
+      }),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      console.warn(
+        `    ⚠️ ${model} returned ${res.status}: ${errText.slice(0, 120)}`
+      );
+      if (res.status === 429) {
+        await new Promise((r) => setTimeout(r, 2500));
+      }
+      continue;
+    }
+
+    const data = await res.json();
+    const inline = data?.candidates?.[0]?.content?.parts?.[0]?.inlineData;
+    if (!inline?.data) {
+      continue;
+    }
+
+    const pcmBuffer = Buffer.from(inline.data, "base64");
+    const ff = spawnSync(
+      FFMPEG_BIN,
+      [
+        "-y",
+        "-f",
+        "s16le",
+        "-ar",
+        "24000",
+        "-ac",
+        "1",
+        "-i",
+        "pipe:0",
+        "-af",
+        "highpass=f=70,lowpass=f=11000,acompressor=threshold=-18dB:ratio=2:attack=15:release=200",
+        "-codec:a",
+        "libmp3lame",
+        "-b:a",
+        "128k",
+        outMp3Path,
+      ],
+      { input: pcmBuffer }
+    );
+
+    if (ff.status === 0 && fs.existsSync(outMp3Path)) {
+      return { engine: `${model} (${GEMINI_VOICE_NAME})` };
+    }
+  }
+
+  throw new Error("All Gemini TTS models failed for segment.");
+}
+
+async function generateFallbackEdgeMp3(text, outMp3Path) {
+  const tts = new MsEdgeTTS();
+  await tts.setMetadata(
+    "en-AU-NatashaNeural",
+    OUTPUT_FORMAT.AUDIO_24KHZ_96KBITRATE_MONO_MP3
+  );
+  // Natural pitch (0Hz) and gentle -4% cadence without artificial phase-vocoder distortion
+  const { audioStream } = tts.toStream(text, {
+    rate: "-4%",
+    pitch: "+0Hz",
+  });
+
+  await new Promise((resolve, reject) => {
+    const writeStream = fs.createWriteStream(outMp3Path);
+    audioStream.pipe(writeStream);
+    writeStream.on("finish", resolve);
+    writeStream.on("error", reject);
+    audioStream.on("error", reject);
+  });
+
+  return { engine: "msedge-tts (en-AU-NatashaNeural natural)" };
+}
+
+/**
+ * Inspect an MP3 with ffmpeg silencedetect to extract real sentence pause boundaries
+ * and total audio duration so karaoke sentence highlighting matches spoken pauses!
+ */
+function inspectMp3SentenceTimings(mp3Path, text) {
+  const sentences =
+    text
+      .match(/[^.!?]+[.!?]+[\])'"`’”]*|.+/g)
+      ?.map((s) => s.trim())
+      .filter(Boolean) || [text];
+
+  const ff = spawnSync(
+    FFMPEG_BIN,
+    [
+      "-i",
+      mp3Path,
+      "-af",
+      "silencedetect=noise=-36dB:d=0.22",
+      "-f",
+      "null",
+      "-",
+    ],
+    { encoding: "utf8" }
+  );
+
+  const stderr = ff.stderr || "";
+  const durMatch = stderr.match(/Duration:\s*(\d+):(\d+):(\d+\.\d+)/);
+  const totalDuration = durMatch
+    ? parseInt(durMatch[1], 10) * 3600 +
+      parseInt(durMatch[2], 10) * 60 +
+      parseFloat(durMatch[3])
+    : 12.0;
+
+  // Collect midpoint timestamps of detected pauses
+  const silenceMidpoints = [];
+  const silenceRegex =
+    /silence_start:\s*([\d.]+)[\s\S]*?silence_end:\s*([\d.]+)/g;
+  let m;
+  while ((m = silenceRegex.exec(stderr)) !== null) {
+    const s = parseFloat(m[1]);
+    const e = parseFloat(m[2]);
+    const mid = (s + e) / 2;
+    if (mid > 0.6 && mid < totalDuration - 0.6) {
+      silenceMidpoints.push(mid);
+    }
+  }
+
+  // Compute ideal character-weighted split points, then snap each split point to the nearest real silence pause!
+  const totalChars =
+    sentences.reduce((sum, s) => sum + s.length, 0) || 1;
+  const boundaries = [0];
+  let cumChars = 0;
+
+  for (let i = 0; i < sentences.length - 1; i++) {
+    cumChars += sentences[i].length;
+    const expectedTime = (cumChars / totalChars) * totalDuration;
+    // Find closest detected silence midpoint within ±1.8s of expectedTime
+    let bestSplit = expectedTime;
+    let bestDist = 1.8;
+    for (const mid of silenceMidpoints) {
+      const dist = Math.abs(mid - expectedTime);
+      if (dist < bestDist && mid > boundaries[boundaries.length - 1] + 0.8) {
+        bestDist = dist;
+        bestSplit = mid;
+      }
+    }
+    boundaries.push(Number(bestSplit.toFixed(2)));
+  }
+  boundaries.push(Number(totalDuration.toFixed(2)));
+
+  return {
+    duration: Number(totalDuration.toFixed(2)),
+    sentenceEndTimes: boundaries.slice(1),
+  };
+}
+
 async function generateAllAudio() {
-  console.log(`🎙️ Generating calm Australian female voiceover (${VOICE})...`);
+  const forceRegen = process.argv.includes("--force");
+  console.log(
+    `🎙️ Generating expressive Australian bedtime voiceover (force=${forceRegen})...`
+  );
+
+  const timingManifest = {};
 
   for (const story of STORY_AUDIO_SEGMENTS) {
     const outDir = path.join(process.cwd(), "public", "audio", story.id);
@@ -176,38 +385,59 @@ async function generateAllAudio() {
 
     for (const item of story.items) {
       const filePath = path.join(outDir, item.filename);
-      if (fs.existsSync(filePath) && fs.statSync(filePath).size > 1000) {
-        console.log(`  ⏭️ Skipping existing ${story.id}/${item.filename}`);
-        continue;
+
+      if (!forceRegen && fs.existsSync(filePath) && fs.statSync(filePath).size > 5000) {
+        console.log(`  ⏭️ Using existing ${story.id}/${item.filename}`);
+      } else {
+        let result;
+        if (API_KEY) {
+          try {
+            result = await generateGeminiAudioMp3(item.text, filePath);
+          } catch (err) {
+            console.warn(
+              `  ⚠️ Gemini TTS fallback triggered for ${story.id}/${item.filename}: ${err.message}`
+            );
+            result = await generateFallbackEdgeMp3(item.text, filePath);
+          }
+        } else {
+          result = await generateFallbackEdgeMp3(item.text, filePath);
+        }
+
+        const stats = fs.statSync(filePath);
+        console.log(
+          `  ✓ Generated ${story.id}/${item.filename} via ${result.engine} (${(
+            stats.size / 1024
+          ).toFixed(1)} KB)`
+        );
       }
 
-      const tts = new MsEdgeTTS();
-      await tts.setMetadata(
-        VOICE,
-        OUTPUT_FORMAT.AUDIO_24KHZ_96KBITRATE_MONO_MP3
-      );
-
-      // Slow, soothing bedtime pacing (-14% rate, slightly softer/lower pitch -2Hz)
-      const { audioStream } = tts.toStream(item.text, {
-        rate: "-14%",
-        pitch: "-2Hz",
-      });
-
-      await new Promise((resolve, reject) => {
-        const writeStream = fs.createWriteStream(filePath);
-        audioStream.pipe(writeStream);
-        writeStream.on("finish", resolve);
-        writeStream.on("error", reject);
-        audioStream.on("error", reject);
-      });
-
-      const stats = fs.statSync(filePath);
-      console.log(
-        `  ✓ Generated ${story.id}/${item.filename} (${(stats.size / 1024).toFixed(1)} KB)`
-      );
+      // Compute acoustic sentence boundary timings for real-time karaoke highlighting
+      const audioUrl = `/audio/${story.id}/${item.filename}`;
+      timingManifest[audioUrl] = inspectMp3SentenceTimings(filePath, item.text);
     }
   }
 
+  // Write acoustic sentence timing manifest so StoryFlipbook can highlight with exact pause sync
+  const timingsTsPath = path.join(
+    process.cwd(),
+    "src",
+    "data",
+    "audioTimings.ts"
+  );
+  const tsContent = `// Auto-generated acoustic sentence boundary timings (via ffmpeg silencedetect)
+export interface AudioSentenceTiming {
+  duration: number;
+  sentenceEndTimes: number[];
+}
+
+export const AUDIO_SENTENCE_TIMINGS: Record<string, AudioSentenceTiming> = ${JSON.stringify(
+    timingManifest,
+    null,
+    2
+  )};
+`;
+  fs.writeFileSync(timingsTsPath, tsContent, "utf8");
+  console.log(`✨ Wrote acoustic sentence timings to src/data/audioTimings.ts`);
   console.log("✨ All bedtime story voiceover files generated successfully!");
 }
 
