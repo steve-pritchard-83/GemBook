@@ -23,6 +23,7 @@ import confetti from "canvas-confetti";
 import { Story, StoryPage } from "@/data/stories";
 import { soundEngine } from "@/utils/soundEffects";
 import { FlipbookHud } from "@/components/FlipbookHud";
+import { ColorByNumbersCanvas } from "@/components/ColorByNumbersCanvas";
 
 interface StoryFlipbookProps {
   story: Story;
@@ -105,6 +106,7 @@ export function StoryFlipbook({
     if ("serviceWorker" in navigator && navigator.serviceWorker.controller) {
       const urls = [
         story.coverImage,
+        story.coloringActivity.imageUrl,
         story.coverAudioUrl || `/audio/${story.id}/cover.mp3`,
         story.closingAudioUrl || `/audio/${story.id}/closing.mp3`,
         ...story.pages.flatMap((p) => [p.image, p.audioUrl]),
@@ -577,7 +579,7 @@ export function StoryFlipbook({
       return;
     }
 
-    // Closing Goodnight Page/Spread (indices 12 & 13)
+    // Closing Goodnight & Colour-by-Numbers Spread (indices 12 & 13)
     if (currentSpreadIndex >= 12) {
       setActiveReadingPageIdx(12);
       onStoryComplete?.(story.id);
@@ -603,10 +605,7 @@ export function StoryFlipbook({
         if (currentRunId !== playbackRunIdRef.current) return;
         setActiveReadingPageIdx(null);
         setIsPlaying(false);
-        sequenceTimeoutRef.current = setTimeout(() => {
-          if (currentRunId !== playbackRunIdRef.current) return;
-          setSleepDimmed(true);
-        }, 2000);
+        // Keep the screen bright so Charlotte can use her Galaxy Tab stylus on the Colour-by-Numbers page!
       });
     }
 
@@ -719,7 +718,7 @@ export function StoryFlipbook({
   // Current human-readable page/spread label
   const getSpreadLabel = () => {
     if (currentSpreadIndex <= 1) return "Cover";
-    if (currentSpreadIndex >= 12) return "Goodnight, Charlotte";
+    if (currentSpreadIndex >= 12) return "Colour by Numbers & Goodnight";
     if (isPortraitPhone) {
       return `Page ${currentSpreadIndex - 1} of 10`;
     }
@@ -1091,74 +1090,59 @@ export function StoryFlipbook({
             })}
 
             {/* =========================================================
-                PAGE INDEX 12 (Spread 6 Left): The End / Goodnight Art
+                PAGE INDEX 12 (Spread 6 Left): The End / Goodnight & Colour Prompt
                ========================================================= */}
             <FlipPage
               className={`${
                 isPortraitPhone ? "rounded-xl" : "rounded-l-xl"
               } bg-gradient-to-br from-[#1b1638] via-[#131029] to-[#0c0a1a] text-amber-100`}
             >
-              <div className="flex h-full flex-col items-center justify-center p-6 sm:p-8 text-center">
-                <div className="mb-4 flex h-16 w-16 sm:h-20 sm:w-20 items-center justify-center rounded-full border border-amber-300/30 bg-amber-300/10 shadow-[0_0_30px_rgba(251,191,36,0.2)]">
-                  <Moon className="h-8 w-8 sm:h-10 sm:w-10 text-amber-300" />
+              <div className="flex h-full flex-col items-center justify-between py-6 pl-5 pr-7 sm:py-8 sm:pl-7 sm:pr-9 text-center">
+                <div className="mt-2 flex items-center gap-2 text-amber-300/80">
+                  <Sparkles className="h-4 w-4" />
+                  <span className="font-display text-[10px] sm:text-xs tracking-[0.25em] uppercase">
+                    The End of Tonight&apos;s Story
+                  </span>
+                  <Sparkles className="h-4 w-4" />
                 </div>
-                <p className="font-display text-[10px] sm:text-xs tracking-[0.3em] uppercase text-amber-300/70">
-                  The End of Tonight&apos;s Chapter
-                </p>
-                <h2 className="mt-3 font-display text-xl sm:text-3xl font-bold text-amber-200">
-                  {story.closingTitle || "Goodnight, Sweet Charlotte"}
-                </h2>
-                <p className="mt-4 max-w-sm font-serif text-xs sm:text-base leading-relaxed text-amber-100/85">
-                  {story.closingMessage}
-                </p>
-                {isPortraitPhone && (
-                  <div className="mt-6 flex items-center gap-3">
-                    <button
-                      onClick={handleRestartStory}
-                      className="flex items-center gap-1.5 rounded-full bg-amber-400 px-4 py-2 text-xs font-bold text-slate-950"
-                    >
-                      <RotateCcw className="h-3.5 w-3.5" />
-                      Read Again
-                    </button>
-                    <button
-                      onClick={() => {
-                        stopCurrentAudio();
-                        onExit();
-                      }}
-                      className="flex items-center gap-1.5 rounded-full border border-amber-300/40 bg-white/10 px-4 py-2 text-xs font-semibold text-amber-100"
-                    >
-                      <BookOpen className="h-3.5 w-3.5" />
-                      Bookshelf
-                    </button>
+
+                <div className="my-auto flex flex-col items-center">
+                  <div className="mb-3 flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-full border border-amber-300/30 bg-amber-300/10 shadow-[0_0_30px_rgba(251,191,36,0.2)]">
+                    <Moon className="h-7 w-7 sm:h-8 sm:w-8 text-amber-300" />
                   </div>
-                )}
-              </div>
-            </FlipPage>
+                  <h2 className="font-display text-xl sm:text-2xl font-bold text-amber-200">
+                    {story.closingTitle || "Goodnight, Sweet Charlotte"}
+                  </h2>
+                  <p className="mt-2.5 max-w-sm font-serif text-xs sm:text-sm leading-relaxed text-amber-100/85">
+                    {story.closingMessage}
+                  </p>
 
-            {/* =========================================================
-                PAGE INDEX 13 (Spread 6 Right): Replay or Return to Library
-               ========================================================= */}
-            <FlipPage
-              className={`${
-                isPortraitPhone ? "rounded-xl" : "rounded-r-xl"
-              } bg-gradient-to-bl from-[#1b1638] via-[#131029] to-[#0c0a1a] text-amber-100`}
-            >
-              <div className="flex h-full flex-col items-center justify-center gap-4 p-6 sm:p-8 text-center">
-                <Sparkles className="h-8 w-8 text-amber-300 animate-pulse" />
-                <h3 className="font-display text-lg sm:text-xl font-semibold text-amber-100">
-                  Sweet Dreams, Charlotte
-                </h3>
-                <p className="max-w-xs text-xs sm:text-sm text-amber-200/70">
-                  Would you like to listen again from Page 1, or choose another
-                  bedtime story from your bookshelf?
-                </p>
+                  {/* Stylus Colour-by-Numbers Invitation Card */}
+                  <div className="mt-5 max-w-sm rounded-2xl border border-amber-400/30 bg-amber-400/10 p-3.5 text-center shadow-inner">
+                    <p className="font-display text-xs sm:text-sm font-bold text-amber-300">
+                      🎨 Bonus Activity: Colour by Numbers!
+                    </p>
+                    <p className="mt-1 font-serif text-xs text-amber-100/90">
+                      {story.coloringActivity.promptText}
+                    </p>
+                    {isPortraitPhone && (
+                      <button
+                        onClick={flipToNextSpread}
+                        className="mt-2.5 inline-flex items-center gap-1.5 rounded-full bg-amber-400 px-4 py-1.5 text-xs font-bold text-slate-950 shadow"
+                      >
+                        Open Colouring Page →
+                      </button>
+                    )}
+                  </div>
+                </div>
 
-                <div className="mt-4 flex flex-col sm:flex-row items-center gap-3">
+                {/* Replay / Bookshelf / Nightlight Actions */}
+                <div className="flex flex-wrap items-center justify-center gap-2.5 pt-2">
                   <button
                     onClick={handleRestartStory}
-                    className="flex items-center gap-2 rounded-full bg-gradient-to-r from-amber-400 to-amber-500 px-5 py-2.5 text-xs sm:text-sm font-bold text-slate-950 shadow-lg transition hover:brightness-110 active:scale-95"
+                    className="flex items-center gap-1.5 rounded-full bg-gradient-to-r from-amber-400 to-amber-500 px-4 py-2 text-xs font-bold text-slate-950 shadow-md transition hover:brightness-110 active:scale-95"
                   >
-                    <RotateCcw className="h-4 w-4" />
+                    <RotateCcw className="h-3.5 w-3.5" />
                     Read Again
                   </button>
 
@@ -1167,12 +1151,43 @@ export function StoryFlipbook({
                       stopCurrentAudio();
                       onExit();
                     }}
-                    className="flex items-center gap-2 rounded-full border border-amber-300/40 bg-white/10 px-5 py-2.5 text-xs sm:text-sm font-semibold text-amber-100 transition hover:bg-white/20 active:scale-95"
+                    className="flex items-center gap-1.5 rounded-full border border-amber-300/40 bg-white/10 px-4 py-2 text-xs font-semibold text-amber-100 transition hover:bg-white/20 active:scale-95"
                   >
-                    <BookOpen className="h-4 w-4" />
+                    <BookOpen className="h-3.5 w-3.5" />
                     Story Bookshelf
                   </button>
+
+                  <button
+                    onClick={() => setSleepDimmed(true)}
+                    className="flex items-center gap-1.5 rounded-full border border-indigo-300/30 bg-indigo-500/20 px-3.5 py-2 text-xs font-semibold text-indigo-200 transition hover:bg-indigo-500/30 active:scale-95"
+                  >
+                    <Moon className="h-3.5 w-3.5" />
+                    Nightlight Mode
+                  </button>
                 </div>
+              </div>
+            </FlipPage>
+
+            {/* =========================================================
+                PAGE INDEX 13 (Spread 6 Right): Interactive Stylus Colour-by-Numbers!
+               ========================================================= */}
+            <FlipPage
+              className={`${
+                isPortraitPhone ? "rounded-xl" : "rounded-r-xl"
+              } bg-gradient-to-b from-[#fdf8ec] via-[#f8eed9] to-[#efe0c1] text-[#2b1e12]`}
+            >
+              <div
+                className={`relative z-20 flex h-full w-full flex-col justify-between py-3.5 sm:py-4 ${
+                  isPortraitPhone ? "px-4" : "pl-7 pr-4 sm:pl-9 sm:pr-6"
+                }`}
+              >
+                <ColorByNumbersCanvas
+                  storyId={story.id}
+                  storyTitle={story.title}
+                  coloringImageUrl={story.coloringActivity.imageUrl}
+                  palette={story.coloringActivity.palette}
+                  hints={story.coloringActivity.hints}
+                />
               </div>
             </FlipPage>
           </HTMLFlipBook>
@@ -1198,7 +1213,7 @@ export function StoryFlipbook({
             setSleepDimmed(false);
             flipToNextSpread();
           }}
-          disabled={currentSpreadIndex >= 12}
+          disabled={currentSpreadIndex >= (isPortraitPhone ? 13 : 12)}
           className={`fixed right-1.5 sm:right-3 top-1/2 z-40 -translate-y-1/2 rounded-full border border-amber-300/25 bg-[#12162b]/80 p-2 sm:p-3 text-amber-200 shadow-xl backdrop-blur-md transition hover:bg-amber-400 hover:text-slate-950 disabled:opacity-20 ${
             showHud ? "opacity-100" : "opacity-0 pointer-events-none"
           }`}

@@ -90,4 +90,30 @@ export const LABYRINTH_CHARLOTTE_STORY: Story = {
       text: "Back in her warm bedroom under her starry quilt, Charlotte smiled as Ludo, Sir Didymus, Ambrosius, and the little blue caterpillar waved fondly from the moonlit mirror. \"Should you ever need us, Charlotte, we are always in your dreams,\" they whispered softly, as the white owl soared into the peaceful night sky.",
     },
   ],
+  coloringActivity: {
+    imageUrl: "/stories/labyrinth-charlotte/coloring.png",
+    promptText:
+      "Use your stylus to paint Charlotte, the Crystal Orb, cuddly Ludo, and the blue caterpillar!",
+    palette: [
+      { number: 1, name: "Blonde Gold", hex: "#FACC15" },
+      { number: 2, name: "Lavender", hex: "#A78BFA" },
+      { number: 3, name: "Ludo Fur", hex: "#D97706" },
+      { number: 4, name: "Crystal Orb", hex: "#E0E7FF" },
+      { number: 5, name: "Caterpillar", hex: "#38BDF8" },
+      { number: 6, name: "Red Scarf", hex: "#EF4444" },
+      { number: 7, name: "Peach Skin", hex: "#FED7AA" },
+      { number: 8, name: "Castle Gold", hex: "#FDE68A" },
+    ],
+    hints: [
+      { x: 28, y: 26, number: 1 }, // Charlotte's blonde hair
+      { x: 35, y: 45, number: 7 }, // Charlotte's face
+      { x: 28, y: 74, number: 2 }, // Charlotte's lavender cardigan
+      { x: 47, y: 71, number: 4 }, // Crystal Orb
+      { x: 68, y: 66, number: 3 }, // Cuddly Ludo
+      { x: 82, y: 29, number: 8 }, // Ludo's horns
+      { x: 8, y: 60, number: 5 }, // Blue caterpillar
+      { x: 8, y: 69, number: 6 }, // Caterpillar's red scarf
+      { x: 5, y: 18, number: 8 }, // Fairytale Castle
+    ],
+  },
 };

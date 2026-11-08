@@ -90,4 +90,30 @@ export const CASPER_CHARLOTTE_STORY: Story = {
       text: "When it was time for sleep, Casper tucked a cozy starry quilt gently around Charlotte's shoulders in the guest bedroom canopy bed. As Charlotte closed her eyes with a peaceful smile, Casper floated outside the arched moonlit window, waving a fond goodnight and watching over her sweetest dreams.",
     },
   ],
+  coloringActivity: {
+    imageUrl: "/stories/casper-charlotte/coloring.png",
+    promptText:
+      "Use your stylus to paint Charlotte, Chef Casper, and the golden star-shaped pancakes!",
+    palette: [
+      { number: 1, name: "Blonde Gold", hex: "#FACC15" },
+      { number: 2, name: "Lavender", hex: "#A78BFA" },
+      { number: 3, name: "Ghost Glow", hex: "#BAE6FD" },
+      { number: 4, name: "Pancake Gold", hex: "#F59E0B" },
+      { number: 5, name: "Starry Dress", hex: "#FEF3C7" },
+      { number: 6, name: "Night Window", hex: "#1E1B4B" },
+      { number: 7, name: "Peach Skin", hex: "#FED7AA" },
+      { number: 8, name: "Candle Flame", hex: "#FDE047" },
+    ],
+    hints: [
+      { x: 18, y: 15, number: 1 }, // Charlotte's blonde hair
+      { x: 18, y: 38, number: 7 }, // Charlotte's face
+      { x: 6, y: 68, number: 2 }, // Charlotte's lavender cardigan
+      { x: 17, y: 88, number: 5 }, // Starry dress
+      { x: 61, y: 63, number: 4 }, // Star pancakes
+      { x: 88, y: 55, number: 3 }, // Casper's glowing body
+      { x: 69, y: 22, number: 8 }, // Crescent moon in window
+      { x: 73, y: 14, number: 6 }, // Night sky in window
+      { x: 38, y: 11, number: 8 }, // Candle flame
+    ],
+  },
 };

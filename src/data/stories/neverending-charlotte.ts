@@ -90,4 +90,31 @@ export const NEVERENDING_CHARLOTTE_STORY: Story = {
       text: "Falkor carried Charlotte softly through the starry mist and tucked her right back beneath her warm bedroom quilt. As her eyelids grew heavy and sweet dreams drifted in, the copper book rested beside her pillow—waiting quietly for tomorrow night's next magical adventure. Goodnight, Charlotte.",
     },
   ],
+  coloringActivity: {
+    imageUrl: "/stories/neverending-charlotte/coloring.png",
+    promptText:
+      "Use your Galaxy Tab stylus to paint Charlotte and Falkor soaring through the starry night sky!",
+    palette: [
+      { number: 1, name: "Blonde Gold", hex: "#FACC15" },
+      { number: 2, name: "Lavender", hex: "#A78BFA" },
+      { number: 3, name: "Dragon Pearl", hex: "#FDF2F8" },
+      { number: 4, name: "Starlight", hex: "#FDE047" },
+      { number: 5, name: "Night Sky", hex: "#1E293B" },
+      { number: 6, name: "Sunset Cloud", hex: "#F9A8D4" },
+      { number: 7, name: "Peach Skin", hex: "#FED7AA" },
+      { number: 8, name: "Ivory Tower", hex: "#C7D2FE" },
+    ],
+    hints: [
+      { x: 47, y: 20, number: 1 }, // Charlotte's blonde hair
+      { x: 49, y: 41, number: 2 }, // Charlotte's lavender top
+      { x: 54, y: 24, number: 7 }, // Charlotte's face
+      { x: 42, y: 63, number: 3 }, // Falkor's body
+      { x: 66, y: 50, number: 6 }, // Falkor's pink-gold ear
+      { x: 13, y: 30, number: 4 }, // Crescent moon
+      { x: 78, y: 15, number: 4 }, // Star
+      { x: 50, y: 8, number: 5 }, // Night sky
+      { x: 90, y: 88, number: 6 }, // Clouds
+      { x: 94, y: 40, number: 8 }, // Ivory Tower
+    ],
+  },
 };
