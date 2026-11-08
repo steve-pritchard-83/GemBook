@@ -1,84 +1,25 @@
-const CACHE_NAME = "charlotte-gembook-v3";
+const SHELL_CACHE_NAME = "charlotte-gembook-shell-v4";
+const MEDIA_CACHE_NAME = "charlotte-gembook-media-v4";
 
-const PRECACHE_ASSETS = [
+// Lightweight app shell & book covers precached immediately on install
+const SHELL_PRECACHE_ASSETS = [
   "/",
   "/manifest.webmanifest",
+  "/icons/icon-192.png",
+  "/icons/icon-512.png",
   "/stories/neverending-charlotte/cover.png",
-  "/stories/neverending-charlotte/page-1.png",
-  "/stories/neverending-charlotte/page-2.png",
-  "/stories/neverending-charlotte/page-3.png",
-  "/stories/neverending-charlotte/page-4.png",
-  "/stories/neverending-charlotte/page-5.png",
-  "/stories/neverending-charlotte/page-6.png",
-  "/stories/neverending-charlotte/page-7.png",
-  "/stories/neverending-charlotte/page-8.png",
-  "/stories/neverending-charlotte/page-9.png",
-  "/stories/neverending-charlotte/page-10.png",
-  "/audio/neverending-charlotte/cover.mp3",
-  "/audio/neverending-charlotte/page-1.mp3",
-  "/audio/neverending-charlotte/page-2.mp3",
-  "/audio/neverending-charlotte/page-3.mp3",
-  "/audio/neverending-charlotte/page-4.mp3",
-  "/audio/neverending-charlotte/page-5.mp3",
-  "/audio/neverending-charlotte/page-6.mp3",
-  "/audio/neverending-charlotte/page-7.mp3",
-  "/audio/neverending-charlotte/page-8.mp3",
-  "/audio/neverending-charlotte/page-9.mp3",
-  "/audio/neverending-charlotte/page-10.mp3",
-  "/audio/neverending-charlotte/closing.mp3",
   "/stories/casper-charlotte/cover.png",
-  "/stories/casper-charlotte/page-1.png",
-  "/stories/casper-charlotte/page-2.png",
-  "/stories/casper-charlotte/page-3.png",
-  "/stories/casper-charlotte/page-4.png",
-  "/stories/casper-charlotte/page-5.png",
-  "/stories/casper-charlotte/page-6.png",
-  "/stories/casper-charlotte/page-7.png",
-  "/stories/casper-charlotte/page-8.png",
-  "/stories/casper-charlotte/page-9.png",
-  "/stories/casper-charlotte/page-10.png",
-  "/audio/casper-charlotte/cover.mp3",
-  "/audio/casper-charlotte/page-1.mp3",
-  "/audio/casper-charlotte/page-2.mp3",
-  "/audio/casper-charlotte/page-3.mp3",
-  "/audio/casper-charlotte/page-4.mp3",
-  "/audio/casper-charlotte/page-5.mp3",
-  "/audio/casper-charlotte/page-6.mp3",
-  "/audio/casper-charlotte/page-7.mp3",
-  "/audio/casper-charlotte/page-8.mp3",
-  "/audio/casper-charlotte/page-9.mp3",
-  "/audio/casper-charlotte/page-10.mp3",
-  "/audio/casper-charlotte/closing.mp3",
   "/stories/labyrinth-charlotte/cover.png",
-  "/stories/labyrinth-charlotte/page-1.png",
-  "/stories/labyrinth-charlotte/page-2.png",
-  "/stories/labyrinth-charlotte/page-3.png",
-  "/stories/labyrinth-charlotte/page-4.png",
-  "/stories/labyrinth-charlotte/page-5.png",
-  "/stories/labyrinth-charlotte/page-6.png",
-  "/stories/labyrinth-charlotte/page-7.png",
-  "/stories/labyrinth-charlotte/page-8.png",
-  "/stories/labyrinth-charlotte/page-9.png",
-  "/stories/labyrinth-charlotte/page-10.png",
+  "/audio/neverending-charlotte/cover.mp3",
+  "/audio/casper-charlotte/cover.mp3",
   "/audio/labyrinth-charlotte/cover.mp3",
-  "/audio/labyrinth-charlotte/page-1.mp3",
-  "/audio/labyrinth-charlotte/page-2.mp3",
-  "/audio/labyrinth-charlotte/page-3.mp3",
-  "/audio/labyrinth-charlotte/page-4.mp3",
-  "/audio/labyrinth-charlotte/page-5.mp3",
-  "/audio/labyrinth-charlotte/page-6.mp3",
-  "/audio/labyrinth-charlotte/page-7.mp3",
-  "/audio/labyrinth-charlotte/page-8.mp3",
-  "/audio/labyrinth-charlotte/page-9.mp3",
-  "/audio/labyrinth-charlotte/page-10.mp3",
-  "/audio/labyrinth-charlotte/closing.mp3",
 ];
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(PRECACHE_ASSETS).catch(() => {
+    caches.open(SHELL_CACHE_NAME).then((cache) => {
+      return cache.addAll(SHELL_PRECACHE_ASSETS).catch(() => {
         // Ignore individual asset failure during initial install
       });
     })
@@ -92,12 +33,38 @@ self.addEventListener("activate", (event) => {
       .then((keys) =>
         Promise.all(
           keys
-            .filter((key) => key !== CACHE_NAME)
+            .filter(
+              (key) => key !== SHELL_CACHE_NAME && key !== MEDIA_CACHE_NAME
+            )
             .map((key) => caches.delete(key))
         )
       )
       .then(() => self.clients.claim())
   );
+});
+
+// Allow the app to request background caching of all pages/audio for an opened story
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "CACHE_STORY_ASSETS") {
+    const urls = event.data.urls || [];
+    event.waitUntil(
+      caches.open(MEDIA_CACHE_NAME).then(async (cache) => {
+        for (const url of urls) {
+          try {
+            const existing = await cache.match(url);
+            if (!existing) {
+              const res = await fetch(url);
+              if (res && res.status === 200) {
+                await cache.put(url, res);
+              }
+            }
+          } catch {
+            // Ignore offline fetch failure
+          }
+        }
+      })
+    );
+  }
 });
 
 self.addEventListener("fetch", (event) => {
@@ -106,7 +73,7 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin) return;
 
-  // Cache-first strategy for story images and voiceover audio
+  // Cache-first strategy for story images, voiceover audio, and icons
   if (
     url.pathname.startsWith("/stories/") ||
     url.pathname.startsWith("/audio/") ||
@@ -118,7 +85,9 @@ self.addEventListener("fetch", (event) => {
         return fetch(event.request).then((response) => {
           if (response && response.status === 200) {
             const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+            caches
+              .open(MEDIA_CACHE_NAME)
+              .then((cache) => cache.put(event.request, clone));
           }
           return response;
         });
@@ -127,13 +96,15 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Network-first with cache fallback for pages
+  // Network-first with cache fallback for HTML/app routes
   event.respondWith(
     fetch(event.request)
       .then((response) => {
         if (response && response.status === 200) {
           const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          caches
+            .open(SHELL_CACHE_NAME)
+            .then((cache) => cache.put(event.request, clone));
         }
         return response;
       })

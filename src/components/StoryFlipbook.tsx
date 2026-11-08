@@ -4,6 +4,7 @@ import React, {
   forwardRef,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -12,26 +13,22 @@ import {
   BookOpen,
   ChevronLeft,
   ChevronRight,
-  Maximize2,
-  Minimize2,
   Moon,
-  Music,
-  Pause,
   Play,
   RotateCcw,
   Sparkles,
-  Sun,
   Volume2,
-  VolumeX,
 } from "lucide-react";
 import confetti from "canvas-confetti";
 import { Story, StoryPage } from "@/data/stories";
 import { soundEngine } from "@/utils/soundEffects";
+import { FlipbookHud } from "@/components/FlipbookHud";
 
 interface StoryFlipbookProps {
   story: Story;
   initialAutoplay?: boolean;
   onExit: () => void;
+  onStoryComplete?: (storyId: string) => void;
 }
 
 // ForwardRef wrapper required by react-pageflip for each page child
@@ -54,17 +51,31 @@ const FlipPage = forwardRef<HTMLDivElement, FlipPageWrapperProps>(
 );
 FlipPage.displayName = "FlipPage";
 
+/**
+ * Splits a page paragraph into natural sentences for real-time bedtime karaoke highlighting
+ */
+function splitIntoSentences(text: string): string[] {
+  const matches = text.match(/[^.!?]+[.!?]+["']?|[^.!?]+$/g);
+  return matches ? matches.map((s) => s.trim()).filter(Boolean) : [text];
+}
+
 export function StoryFlipbook({
   story,
   initialAutoplay = true,
   onExit,
+  onStoryComplete,
 }: StoryFlipbookProps) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const flipBookRef = useRef<any>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const preloadAudioRef = useRef<HTMLAudioElement | null>(null);
   const sequenceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hudTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const exitHoldTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const speechWatchdogRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Monotonically increasing playback session token so stale callbacks NEVER trigger a premature page flip
+  const playbackRunIdRef = useRef<number>(0);
 
   // Flipbook size & orientation state (auto-adapts between Landscape 2-page spread & Portrait 1-page phone view)
   const [dimensions, setDimensions] = useState({ width: 520, height: 640 });
@@ -73,6 +84,7 @@ export function StoryFlipbook({
   const [activeReadingPageIdx, setActiveReadingPageIdx] = useState<
     number | null
   >(null); // 0..13
+  const [activeReadingProgress, setActiveReadingProgress] = useState(0); // 0..1 audio progress for sentence highlight
   const [isPlaying, setIsPlaying] = useState(initialAutoplay);
   const [isAutoplay, setIsAutoplay] = useState(initialAutoplay);
   const [isMuted, setIsMuted] = useState(false);
@@ -83,6 +95,27 @@ export function StoryFlipbook({
   const [exitHoldProgress, setExitHoldProgress] = useState(0);
   const [sleepDimmed, setSleepDimmed] = useState(false);
 
+  // Pre-split sentences per page for smooth karaoke highlighting
+  const pageSentences = useMemo(() => {
+    return story.pages.map((p) => splitIntoSentences(p.text));
+  }, [story.pages]);
+
+  // Ask Service Worker to cache all images & audio for this story in the background
+  useEffect(() => {
+    if ("serviceWorker" in navigator && navigator.serviceWorker.controller) {
+      const urls = [
+        story.coverImage,
+        story.coverAudioUrl || `/audio/${story.id}/cover.mp3`,
+        story.closingAudioUrl || `/audio/${story.id}/closing.mp3`,
+        ...story.pages.flatMap((p) => [p.image, p.audioUrl]),
+      ];
+      navigator.serviceWorker.controller.postMessage({
+        type: "CACHE_STORY_ASSETS",
+        urls,
+      });
+    }
+  }, [story]);
+
   // Compute responsive book page dimensions for both Landscape Tablet (2-page) & Portrait Phone (1-page)
   useEffect(() => {
     const updateSize = () => {
@@ -92,7 +125,6 @@ export function StoryFlipbook({
       setIsPortraitPhone(portraitMode);
 
       if (portraitMode) {
-        // Single-page portrait phone view: fill nearly full width & comfortable height
         const pageWidth = Math.min(Math.floor(vw * 0.92), 480);
         const pageHeight = Math.min(Math.floor(vh * 0.8), 760);
         setDimensions({
@@ -100,7 +132,6 @@ export function StoryFlipbook({
           height: Math.max(420, pageHeight),
         });
       } else {
-        // Landscape tablet 2-page spread view
         const maxBookWidth = Math.min(vw * 0.94, 1440);
         const maxBookHeight = Math.min(vh * 0.88, 860);
 
@@ -198,16 +229,22 @@ export function StoryFlipbook({
     };
   }, [resetHudTimer]);
 
-  // Stop any current audio or speech synthesis
+  // Stop any current audio or speech synthesis and invalidate any pending flip timers
   const stopCurrentAudio = useCallback(() => {
+    playbackRunIdRef.current += 1;
     if (sequenceTimeoutRef.current) {
       clearTimeout(sequenceTimeoutRef.current);
       sequenceTimeoutRef.current = null;
     }
+    if (speechWatchdogRef.current) {
+      clearInterval(speechWatchdogRef.current);
+      speechWatchdogRef.current = null;
+    }
     if (audioRef.current) {
-      audioRef.current.pause();
       audioRef.current.onended = null;
       audioRef.current.onerror = null;
+      audioRef.current.ontimeupdate = null;
+      audioRef.current.pause();
       audioRef.current = null;
     }
     if (typeof window !== "undefined" && "speechSynthesis" in window) {
@@ -215,13 +252,35 @@ export function StoryFlipbook({
     }
   }, []);
 
-  // Fallback Web Speech API with calm Australian/British female voice if MP3 fails
+  // Preload upcoming audio track into browser cache so the next page starts with zero buffering
+  const preloadNextAudio = useCallback((nextUrl?: string) => {
+    if (!nextUrl || typeof window === "undefined") return;
+    try {
+      const preload = new Audio();
+      preload.preload = "auto";
+      preload.src = nextUrl;
+      preloadAudioRef.current = preload;
+    } catch {
+      // Ignore
+    }
+  }, []);
+
+  // Fallback Web Speech API with strict completion verification so it NEVER completes prematurely
   const speakWithWebSpeechFallback = useCallback(
-    (text: string, onComplete: () => void) => {
+    (text: string, runId: number, onComplete: () => void) => {
+      if (runId !== playbackRunIdRef.current) return;
+
+      // Minimum realistic reading time (~55ms per character at slow bedtime rate) as a safety floor
+      const minReadingDurationMs = Math.max(2500, text.length * 52);
+      const startTime = Date.now();
+
       if (typeof window === "undefined" || !("speechSynthesis" in window)) {
-        onComplete();
+        sequenceTimeoutRef.current = setTimeout(() => {
+          if (runId === playbackRunIdRef.current) onComplete();
+        }, minReadingDurationMs);
         return;
       }
+
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
       const voices = window.speechSynthesis.getVoices();
@@ -241,35 +300,109 @@ export function StoryFlipbook({
       utterance.rate = 0.85;
       utterance.pitch = 0.98;
       utterance.volume = isMuted ? 0 : 1;
-      utterance.onend = () => onComplete();
-      utterance.onerror = () => onComplete();
+
+      let finished = false;
+      const finishSafely = () => {
+        if (finished || runId !== playbackRunIdRef.current) return;
+        finished = true;
+        if (speechWatchdogRef.current) {
+          clearInterval(speechWatchdogRef.current);
+          speechWatchdogRef.current = null;
+        }
+        const elapsed = Date.now() - startTime;
+        const remainingFloor = Math.max(0, minReadingDurationMs - elapsed);
+        // If speechSynthesis fired onend/onerror suspiciously early (< 40% of expected duration), wait out the floor
+        if (elapsed < minReadingDurationMs * 0.4) {
+          sequenceTimeoutRef.current = setTimeout(() => {
+            if (runId === playbackRunIdRef.current) onComplete();
+          }, remainingFloor);
+        } else {
+          onComplete();
+        }
+      };
+
+      utterance.onboundary = (event) => {
+        if (runId !== playbackRunIdRef.current) return;
+        if (typeof event.charIndex === "number" && text.length > 0) {
+          setActiveReadingProgress(
+            Math.min(0.99, event.charIndex / text.length)
+          );
+        }
+      };
+
+      utterance.onend = finishSafely;
+      utterance.onerror = finishSafely;
+
       window.speechSynthesis.speak(utterance);
     },
     [isMuted]
   );
 
-  // Play a single audio URL with fallback to Web Speech API
+  /**
+   * Plays an MP3 audio clip and ONLY invokes `onDone` when the audio file has genuinely finished playing to the end
+   * (verified via `audio.ended` / `currentTime >= duration - 0.15` and guarded by `playbackRunIdRef`).
+   */
   const playAudioClip = useCallback(
-    (audioUrl: string, fallbackText: string, onDone: () => void) => {
-      stopCurrentAudio();
+    (
+      audioUrl: string,
+      fallbackText: string,
+      runId: number,
+      onDone: () => void
+    ) => {
+      if (runId !== playbackRunIdRef.current) return;
 
+      setActiveReadingProgress(0);
       const audio = new Audio(audioUrl);
+      audio.preload = "auto";
       audio.volume = isMuted ? 0 : 1;
       audioRef.current = audio;
 
+      let completed = false;
+
+      // Track live playback progress for sentence karaoke highlighting
+      audio.ontimeupdate = () => {
+        if (runId !== playbackRunIdRef.current) return;
+        if (audio.duration && Number.isFinite(audio.duration) && audio.duration > 0) {
+          setActiveReadingProgress(
+            Math.min(1, audio.currentTime / audio.duration)
+          );
+        }
+      };
+
+      // Strictly verify the audio truly reached the end before allowing the page turn callback
       audio.onended = () => {
+        if (completed || runId !== playbackRunIdRef.current) return;
+        // Guard against any browser firing `ended` prematurely while currentTime is far before duration
+        if (
+          audio.duration &&
+          Number.isFinite(audio.duration) &&
+          audio.duration > 1 &&
+          audio.currentTime < audio.duration - 0.35
+        ) {
+          audio.play().catch(() => {
+            completed = true;
+            onDone();
+          });
+          return;
+        }
+        completed = true;
+        setActiveReadingProgress(1);
         onDone();
       };
 
       audio.onerror = () => {
-        speakWithWebSpeechFallback(fallbackText, onDone);
+        if (completed || runId !== playbackRunIdRef.current) return;
+        completed = true;
+        speakWithWebSpeechFallback(fallbackText, runId, onDone);
       };
 
       audio.play().catch(() => {
-        speakWithWebSpeechFallback(fallbackText, onDone);
+        if (completed || runId !== playbackRunIdRef.current) return;
+        completed = true;
+        speakWithWebSpeechFallback(fallbackText, runId, onDone);
       });
     },
-    [isMuted, speakWithWebSpeechFallback, stopCurrentAudio]
+    [isMuted, speakWithWebSpeechFallback]
   );
 
   // Update mute on live audio element
@@ -299,31 +432,45 @@ export function StoryFlipbook({
   }, []);
 
   // Main synchronized voiceover + auto-page-flip state machine
-  // Supports both Portrait Phone (1 page per view) and Landscape Tablet (2 pages per spread)
+  // Strictly waits for the current page's audio (or both pages in 2-page landscape spread) to finish 100% before turning
   useEffect(() => {
+    stopCurrentAudio();
+
     if (!isPlaying) {
-      stopCurrentAudio();
       setActiveReadingPageIdx(null);
+      setActiveReadingProgress(0);
       return;
     }
 
+    const currentRunId = playbackRunIdRef.current;
+
     // Cover & Dedication (indices 0 or 1)
-    if (currentSpreadIndex === 0 || (isPortraitPhone && currentSpreadIndex === 1)) {
+    if (
+      currentSpreadIndex === 0 ||
+      (isPortraitPhone && currentSpreadIndex === 1)
+    ) {
       setSleepDimmed(false);
       setActiveReadingPageIdx(currentSpreadIndex);
       const coverAudio =
         story.coverAudioUrl || `/audio/${story.id}/cover.mp3`;
       const coverText = `${story.title}. ${story.subtitle}. ${story.dedicatedTo}.`;
 
-      playAudioClip(coverAudio, coverText, () => {
+      preloadNextAudio(story.pages[0]?.audioUrl);
+
+      playAudioClip(coverAudio, coverText, currentRunId, () => {
+        if (currentRunId !== playbackRunIdRef.current) return;
         if (!isAutoplay) {
           setIsPlaying(false);
           setActiveReadingPageIdx(null);
           return;
         }
         sequenceTimeoutRef.current = setTimeout(() => {
-          if (isPortraitPhone && currentSpreadIndex === 0 && flipBookRef.current) {
-            // In portrait mode, jump straight from frontispiece to Page 1 (index 2)
+          if (currentRunId !== playbackRunIdRef.current) return;
+          if (
+            isPortraitPhone &&
+            currentSpreadIndex === 0 &&
+            flipBookRef.current
+          ) {
             soundEngine.playPageFlip();
             flipBookRef.current.pageFlip().flip(2);
           } else {
@@ -338,27 +485,38 @@ export function StoryFlipbook({
     if (currentSpreadIndex >= 2 && currentSpreadIndex <= 11) {
       setSleepDimmed(false);
 
-      // PORTRAIT PHONE MODE: Read the single visible page, then flip to the next single page
+      // PORTRAIT PHONE MODE: Read the single visible page completely, then flip to the next single page
       if (isPortraitPhone) {
         const storyPageIndex = currentSpreadIndex - 2; // 0..9
         const singlePage: StoryPage | undefined = story.pages[storyPageIndex];
         if (!singlePage) return;
 
+        preloadNextAudio(
+          story.pages[storyPageIndex + 1]?.audioUrl || story.closingAudioUrl
+        );
+
         setActiveReadingPageIdx(currentSpreadIndex);
-        playAudioClip(singlePage.audioUrl, singlePage.text, () => {
-          setActiveReadingPageIdx(null);
-          if (!isAutoplay) {
-            setIsPlaying(false);
-            return;
+        playAudioClip(
+          singlePage.audioUrl,
+          singlePage.text,
+          currentRunId,
+          () => {
+            if (currentRunId !== playbackRunIdRef.current) return;
+            setActiveReadingPageIdx(null);
+            if (!isAutoplay) {
+              setIsPlaying(false);
+              return;
+            }
+            sequenceTimeoutRef.current = setTimeout(() => {
+              if (currentRunId !== playbackRunIdRef.current) return;
+              flipToNextSpread();
+            }, 1400);
           }
-          sequenceTimeoutRef.current = setTimeout(() => {
-            flipToNextSpread();
-          }, 1500);
-        });
+        );
         return;
       }
 
-      // LANDSCAPE TABLET MODE: Read Left Page, pause 1.4s, read Right Page, then flip to next 2-page spread
+      // LANDSCAPE TABLET MODE: Read Left Page completely -> 1.4s breath -> Read Right Page completely -> 1.6s pause -> Flip!
       const spreadStartIndex =
         currentSpreadIndex % 2 === 0
           ? currentSpreadIndex
@@ -371,29 +529,49 @@ export function StoryFlipbook({
 
       if (!leftPage) return;
 
-      // Step 1: Read Left Page
+      preloadNextAudio(rightPage?.audioUrl);
+
+      // Step 1: Read Left Page until its audio file completely ends
       setActiveReadingPageIdx(spreadStartIndex);
-      playAudioClip(leftPage.audioUrl, leftPage.text, () => {
+      playAudioClip(leftPage.audioUrl, leftPage.text, currentRunId, () => {
+        if (currentRunId !== playbackRunIdRef.current) return;
+
         // Calm 1.4-second bedtime breath between Left Page and Right Page
         sequenceTimeoutRef.current = setTimeout(() => {
+          if (currentRunId !== playbackRunIdRef.current) return;
+
           if (!rightPage) {
             if (isAutoplay) flipToNextSpread();
             return;
           }
 
-          // Step 2: Read Right Page
+          // Preload the first page of the NEXT spread while reading the Right Page
+          preloadNextAudio(
+            story.pages[rightStoryPageIndex + 1]?.audioUrl ||
+              story.closingAudioUrl
+          );
+
+          // Step 2: Read Right Page until its audio file completely ends
           setActiveReadingPageIdx(spreadStartIndex + 1);
-          playAudioClip(rightPage.audioUrl, rightPage.text, () => {
-            setActiveReadingPageIdx(null);
-            if (!isAutoplay) {
-              setIsPlaying(false);
-              return;
+          playAudioClip(
+            rightPage.audioUrl,
+            rightPage.text,
+            currentRunId,
+            () => {
+              if (currentRunId !== playbackRunIdRef.current) return;
+              setActiveReadingPageIdx(null);
+
+              if (!isAutoplay) {
+                setIsPlaying(false);
+                return;
+              }
+              // Calm 1.6-second pause after finishing both pages on the spread before turning page
+              sequenceTimeoutRef.current = setTimeout(() => {
+                if (currentRunId !== playbackRunIdRef.current) return;
+                flipToNextSpread();
+              }, 1600);
             }
-            // Calm 1.8-second pause after finishing both pages on the spread before turning page
-            sequenceTimeoutRef.current = setTimeout(() => {
-              flipToNextSpread();
-            }, 1800);
-          });
+          );
         }, 1400);
       });
       return;
@@ -402,6 +580,8 @@ export function StoryFlipbook({
     // Closing Goodnight Page/Spread (indices 12 & 13)
     if (currentSpreadIndex >= 12) {
       setActiveReadingPageIdx(12);
+      onStoryComplete?.(story.id);
+
       try {
         confetti({
           particleCount: 40,
@@ -419,10 +599,12 @@ export function StoryFlipbook({
         story.closingMessage || "Sleep tight and have magical dreams."
       }`;
 
-      playAudioClip(closingAudio, closingText, () => {
+      playAudioClip(closingAudio, closingText, currentRunId, () => {
+        if (currentRunId !== playbackRunIdRef.current) return;
         setActiveReadingPageIdx(null);
         setIsPlaying(false);
         sequenceTimeoutRef.current = setTimeout(() => {
+          if (currentRunId !== playbackRunIdRef.current) return;
           setSleepDimmed(true);
         }, 2000);
       });
@@ -438,8 +620,10 @@ export function StoryFlipbook({
     isPortraitPhone,
     story,
     playAudioClip,
+    preloadNextAudio,
     flipToNextSpread,
     stopCurrentAudio,
+    onStoryComplete,
   ]);
 
   // Cleanup on unmount
@@ -452,7 +636,7 @@ export function StoryFlipbook({
 
   // Jump straight to Story Page 1 (index 2) when opening if initialAutoplay is true
   const handleBookInit = useCallback(() => {
-    if (initialAutoplay && flipBookRef.current) {
+    if (initialAutoplay && flipBookRef.current && currentSpreadIndex === 0) {
       setTimeout(() => {
         try {
           const pf = flipBookRef.current?.pageFlip();
@@ -465,7 +649,7 @@ export function StoryFlipbook({
         }
       }, 650);
     }
-  }, [initialAutoplay]);
+  }, [initialAutoplay, currentSpreadIndex]);
 
   const toggleFullscreen = async () => {
     try {
@@ -499,10 +683,13 @@ export function StoryFlipbook({
     setIsPlaying(false);
     stopCurrentAudio();
 
+    const singleRunId = playbackRunIdRef.current;
     setTimeout(() => {
       setActiveReadingPageIdx(pageIdx);
-      playAudioClip(page.audioUrl, page.text, () => {
-        setActiveReadingPageIdx(null);
+      playAudioClip(page.audioUrl, page.text, singleRunId, () => {
+        if (singleRunId === playbackRunIdRef.current) {
+          setActiveReadingPageIdx(null);
+        }
       });
     }, 60);
   };
@@ -576,150 +763,40 @@ export function StoryFlipbook({
         </div>
       )}
 
-      {/* Top Floating Bedtime HUD */}
-      <header
-        className={`fixed top-2.5 left-2.5 right-2.5 sm:top-3 sm:left-4 sm:right-4 z-50 flex items-center justify-between gap-1.5 transition-all duration-500 ${
-          showHud
-            ? "translate-y-0 opacity-100"
-            : "-translate-y-16 opacity-0 pointer-events-none"
-        }`}
-      >
-        {/* Left: Back to Library Button */}
-        <div className="flex items-center gap-2">
-          <button
-            onMouseDown={startExitHold}
-            onMouseUp={cancelExitHold}
-            onMouseLeave={cancelExitHold}
-            onTouchStart={startExitHold}
-            onTouchEnd={cancelExitHold}
-            className="relative overflow-hidden flex items-center gap-1.5 rounded-full border border-amber-300/25 bg-[#12162b]/90 px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-medium text-amber-100 shadow-lg backdrop-blur-md transition hover:border-amber-300/50 active:scale-95"
-            title={
-              isPlaying
-                ? "Hold briefly to return to bookshelf"
-                : "Return to bookshelf"
-            }
-          >
-            <div
-              className="absolute inset-y-0 left-0 bg-amber-400/30 transition-all duration-700"
-              style={{ width: `${exitHoldProgress}%` }}
-            />
-            <ChevronLeft className="h-4 w-4 text-amber-300 shrink-0" />
-            <span className="truncate">
-              {isPlaying
-                ? isPortraitPhone
-                  ? "Hold"
-                  : "Hold for Library"
-                : "Library"}
-            </span>
-          </button>
-
-          <div className="hidden lg:flex items-center gap-2 rounded-full border border-white/10 bg-[#12162b]/80 px-4 py-1.5 text-xs text-amber-200/90 backdrop-blur-md">
-            <Sparkles className="h-3.5 w-3.5 text-amber-400" />
-            <span className="font-display tracking-wide">{story.title}</span>
-            <span className="text-amber-300/40">•</span>
-            <span className="text-amber-100/80">{getSpreadLabel()}</span>
-          </div>
-        </div>
-
-        {/* Right: Bedtime Comfort & Audio Controls */}
-        <div className="flex items-center gap-1 sm:gap-2 rounded-full border border-amber-300/20 bg-[#12162b]/90 p-1 sm:p-1.5 shadow-xl backdrop-blur-md">
-          {/* Play / Pause Narrator */}
-          <button
-            onClick={() => {
-              setSleepDimmed(false);
-              setIsPlaying((prev) => !prev);
-            }}
-            className={`flex items-center gap-1.5 rounded-full px-2.5 py-1.5 sm:px-3.5 text-xs sm:text-sm font-bold transition ${
-              isPlaying
-                ? "bg-amber-400 text-slate-950 shadow-md shadow-amber-400/20"
-                : "bg-amber-400/15 text-amber-200 hover:bg-amber-400/25"
-            }`}
-          >
-            {isPlaying ? (
-              <>
-                <Pause className="h-3.5 w-3.5 fill-current shrink-0" />
-                <span>{isPortraitPhone ? "Pause" : "Pause Voice"}</span>
-              </>
-            ) : (
-              <>
-                <Play className="h-3.5 w-3.5 fill-current shrink-0" />
-                <span>{isPortraitPhone ? "Read" : "Read Aloud"}</span>
-              </>
-            )}
-          </button>
-
-          {/* Auto-Flip Toggle */}
-          <button
-            onClick={() => setIsAutoplay((prev) => !prev)}
-            className={`rounded-full px-2.5 py-1.5 sm:px-3 text-[11px] sm:text-xs font-semibold transition ${
-              isAutoplay
-                ? "bg-indigo-500/30 text-indigo-200 border border-indigo-400/40"
-                : "text-amber-100/60 hover:text-amber-100"
-            }`}
-            title="Automatically turn pages when voiceover finishes"
-          >
-            {isPortraitPhone
-              ? `Auto: ${isAutoplay ? "ON" : "OFF"}`
-              : `Auto-Turn: ${isAutoplay ? "ON" : "OFF"}`}
-          </button>
-
-          {/* Ambient Lullaby Music Box Toggle */}
-          <button
-            onClick={() => setIsAmbientOn((prev) => !prev)}
-            className={`rounded-full p-1.5 sm:p-2 transition ${
-              isAmbientOn
-                ? "bg-amber-400/20 text-amber-300"
-                : "text-amber-100/40 hover:text-amber-100/80"
-            }`}
-            title="Toggle soft bedtime music-box lullaby"
-            aria-label="Toggle Lullaby Music"
-          >
-            <Music className="h-4 w-4" />
-          </button>
-
-          {/* Mute Toggle */}
-          <button
-            onClick={() => setIsMuted((prev) => !prev)}
-            className="rounded-full p-1.5 sm:p-2 text-amber-200/80 hover:bg-white/10 hover:text-amber-100"
-            title={isMuted ? "Unmute Audio" : "Mute Audio"}
-            aria-label="Toggle Mute"
-          >
-            {isMuted ? (
-              <VolumeX className="h-4 w-4 text-rose-400" />
-            ) : (
-              <Volume2 className="h-4 w-4 text-amber-300" />
-            )}
-          </button>
-
-          {/* Warm Night Light Dimmer */}
-          <div className="hidden md:flex items-center gap-1.5 px-2 border-l border-white/10">
-            <Sun className="h-3.5 w-3.5 text-amber-300/70" />
-            <input
-              type="range"
-              min={0}
-              max={45}
-              value={warmthLevel}
-              onChange={(e) => setWarmthLevel(Number(e.target.value))}
-              className="h-1.5 w-16 cursor-pointer accent-amber-400"
-              title="Warm Bedtime Eye-Comfort Filter"
-            />
-          </div>
-
-          {/* Fullscreen Toggle */}
-          <button
-            onClick={toggleFullscreen}
-            className="rounded-full p-1.5 sm:p-2 text-amber-200/80 hover:bg-white/10 hover:text-amber-100"
-            title="Toggle Fullscreen"
-            aria-label="Toggle Fullscreen"
-          >
-            {isFullscreen ? (
-              <Minimize2 className="h-4 w-4" />
-            ) : (
-              <Maximize2 className="h-4 w-4" />
-            )}
-          </button>
-        </div>
-      </header>
+      {/* Extracted Top & Bottom HUD Controls */}
+      <FlipbookHud
+        storyTitle={story.title}
+        spreadLabel={getSpreadLabel()}
+        showHud={showHud}
+        isPlaying={isPlaying}
+        isAutoplay={isAutoplay}
+        isAmbientOn={isAmbientOn}
+        isMuted={isMuted}
+        isFullscreen={isFullscreen}
+        isPortraitPhone={isPortraitPhone}
+        warmthLevel={warmthLevel}
+        exitHoldProgress={exitHoldProgress}
+        currentSpreadIndex={currentSpreadIndex}
+        onStartExitHold={startExitHold}
+        onCancelExitHold={cancelExitHold}
+        onTogglePlay={() => {
+          setSleepDimmed(false);
+          setIsPlaying((prev) => !prev);
+        }}
+        onToggleAutoplay={() => setIsAutoplay((prev) => !prev)}
+        onToggleAmbient={() => setIsAmbientOn((prev) => !prev)}
+        onToggleMute={() => setIsMuted((prev) => !prev)}
+        onChangeWarmth={(val) => setWarmthLevel(val)}
+        onToggleFullscreen={toggleFullscreen}
+        onJumpToSpread={(targetIdx) => {
+          setSleepDimmed(false);
+          stopCurrentAudio();
+          if (flipBookRef.current) {
+            soundEngine.playPageFlip();
+            flipBookRef.current.pageFlip().flip(targetIdx);
+          }
+        }}
+      />
 
       {/* Main 3D Hardcover Book Frame */}
       <div className="relative flex items-center justify-center">
@@ -747,7 +824,7 @@ export function StoryFlipbook({
             </>
           )}
 
-          {/* Interactive Flipbook (re-mounts cleanly when switching between Portrait 1-page and Landscape 2-page) */}
+          {/* Interactive Flipbook */}
           <HTMLFlipBook
             key={isPortraitPhone ? "portrait-book" : "landscape-book"}
             ref={flipBookRef}
@@ -788,9 +865,7 @@ export function StoryFlipbook({
                 isPortraitPhone ? "rounded-xl" : "rounded-l-xl"
               } bg-gradient-to-br from-[#fbf4e4] via-[#f5e8cc] to-[#ead5ad] text-parchment-900 shadow-inner`}
             >
-              <div
-                className={`flex h-full flex-col items-center justify-between border-r border-amber-900/15 p-5 sm:py-10 sm:pl-8 sm:pr-10 text-center`}
-              >
+              <div className="flex h-full flex-col items-center justify-between border-r border-amber-900/15 p-5 sm:py-10 sm:pl-8 sm:pr-10 text-center">
                 <div className="mt-2 sm:mt-4 flex items-center gap-2 text-amber-800/70">
                   <Sparkles className="h-4 w-4" />
                   <span className="font-display text-[10px] sm:text-xs tracking-[0.25em] uppercase">
@@ -860,12 +935,24 @@ export function StoryFlipbook({
 
             {/* =========================================================
                 PAGE INDICES 2..11 (Spreads 1..5): 10 Story Pages!
-                2 Pages per view on Landscape Tablet, 1 Page per view on Portrait Phone
                ========================================================= */}
             {story.pages.map((page, idx) => {
               const flipPageIndex = idx + 2; // 2..11
               const isLeftPage = flipPageIndex % 2 === 0;
               const isBeingRead = activeReadingPageIdx === flipPageIndex;
+              const sentences = pageSentences[idx] || [page.text];
+
+              // Calculate which sentence is currently being spoken based on character-weighted audio progress
+              const totalChars = page.text.length || 1;
+              let cumulativeChars = 0;
+              const activeSentenceIdx = isBeingRead
+                ? sentences.findIndex((s) => {
+                    cumulativeChars += s.length + 1;
+                    return (
+                      activeReadingProgress <= cumulativeChars / totalChars
+                    );
+                  })
+                : -1;
 
               return (
                 <FlipPage
@@ -937,23 +1024,46 @@ export function StoryFlipbook({
                         }`}
                         loading="eager"
                       />
-                      {/* Subtle vignette frame */}
                       <div className="pointer-events-none absolute inset-0 rounded-xl shadow-[inset_0_0_24px_rgba(43,30,18,0.28)]" />
                     </div>
 
-                    {/* Easy-to-read Bedtime Story Text */}
+                    {/* Easy-to-read Bedtime Story Text with Sentence Karaoke Highlight & Scroll-Safety on Small Portrait Phones */}
                     <div
-                      className={`rounded-xl px-3 py-2 sm:px-4 sm:py-3 transition-colors duration-500 ${
+                      className={`max-h-[34%] overflow-y-auto rounded-xl px-3 py-2 sm:px-4 sm:py-3 transition-colors duration-500 ${
                         isBeingRead
-                          ? "bg-amber-300/25 border border-amber-600/30 shadow-sm"
+                          ? "bg-amber-300/20 border border-amber-600/30 shadow-sm"
                           : "bg-amber-950/[0.04] border border-amber-900/10"
                       }`}
                     >
                       <p className="font-serif text-[12.5px] sm:text-[15px] md:text-[15.5px] leading-relaxed text-[#2a1d11]">
-                        <span className="font-display text-base sm:text-xl font-bold text-amber-800">
-                          {page.text.charAt(0)}
-                        </span>
-                        {page.text.slice(1)}
+                        {sentences.map((sentence, sIdx) => {
+                          const isCurrentSentence =
+                            isBeingRead &&
+                            (activeSentenceIdx === sIdx ||
+                              (activeSentenceIdx === -1 &&
+                                sIdx === sentences.length - 1));
+                          return (
+                            <span
+                              key={sIdx}
+                              className={`transition-colors duration-300 rounded px-0.5 ${
+                                isCurrentSentence
+                                  ? "bg-amber-400/45 text-[#1a1108] font-medium"
+                                  : ""
+                              }`}
+                            >
+                              {sIdx === 0 ? (
+                                <>
+                                  <span className="font-display text-base sm:text-xl font-bold text-amber-800">
+                                    {sentence.charAt(0)}
+                                  </span>
+                                  {sentence.slice(1)}
+                                </>
+                              ) : (
+                                sentence
+                              )}{" "}
+                            </span>
+                          );
+                        })}
                       </p>
                     </div>
 
@@ -1097,52 +1207,6 @@ export function StoryFlipbook({
           <ChevronRight className="h-5 w-5 sm:h-6 sm:w-6" />
         </button>
       </div>
-
-      {/* Bottom Progress Bar / Dots */}
-      <footer
-        className={`fixed bottom-2 z-40 flex max-w-[95vw] items-center gap-1 sm:gap-2 overflow-x-auto rounded-full border border-white/10 bg-[#12162b]/85 px-3 py-1 sm:px-4 sm:py-1.5 backdrop-blur-md transition-all duration-500 ${
-          showHud
-            ? "translate-y-0 opacity-100"
-            : "translate-y-12 opacity-0 pointer-events-none"
-        }`}
-      >
-        {(isPortraitPhone
-          ? [0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
-          : [0, 2, 4, 6, 8, 10, 12]
-        ).map((targetIdx) => {
-          const isCurrent = isPortraitPhone
-            ? currentSpreadIndex === targetIdx ||
-              (targetIdx === 0 && currentSpreadIndex === 1)
-            : currentSpreadIndex === targetIdx;
-          const label =
-            targetIdx === 0
-              ? "Cover"
-              : targetIdx === 12
-              ? "End"
-              : isPortraitPhone
-              ? `${targetIdx - 1}`
-              : `${targetIdx - 1}-${targetIdx}`;
-          return (
-            <button
-              key={targetIdx}
-              onClick={() => {
-                setSleepDimmed(false);
-                if (flipBookRef.current) {
-                  soundEngine.playPageFlip();
-                  flipBookRef.current.pageFlip().flip(targetIdx);
-                }
-              }}
-              className={`shrink-0 rounded-full px-2 py-0.5 sm:px-2.5 text-[10px] sm:text-[11px] font-semibold transition-all ${
-                isCurrent
-                  ? "bg-amber-400 text-slate-950 shadow-sm scale-105"
-                  : "text-amber-200/60 hover:text-amber-100"
-              }`}
-            >
-              {label}
-            </button>
-          );
-        })}
-      </footer>
     </div>
   );
 }
