@@ -59,6 +59,59 @@ const STORY_AUDIO_SEGMENTS = [
       },
     ],
   },
+  {
+    id: "casper-charlotte",
+    items: [
+      {
+        filename: "cover.mp3",
+        text: "Charlotte and the Friendly Ghost. A Cozy Whipstaff Manor Bedtime Adventure. Dedicated with love to Charlotte.",
+      },
+      {
+        filename: "page-1.mp3",
+        text: "In the sleepy seaside town of Friendship, Maine, autumn fireflies twinkled along the stone pathway to Whipstaff Manor. Seven-year-old Charlotte wrapped her soft lavender cardigan around her shoulders and smiled up at the whimsical stained-glass turrets. High in the round tower window, a warm, pearly-blue light flickered like a friendly wave hello.",
+      },
+      {
+        filename: "page-2.mp3",
+        text: "Inside the grand foyer, hundreds of golden candles floated like tiny stars beneath the vaulted ceiling. From behind a shiny knight's armor drifted a gentle, glowing little ghost with kind eyes and the sweetest smile. Hi there, I'm Casper! he whispered softly, floating on a cushion of moonbeams. I was hoping a friend like you might visit tonight.",
+      },
+      {
+        filename: "page-3.mp3",
+        text: "In the cozy velvet parlor, Casper's three goofy uncles, Stretch, Stinkie, and Fatso, tried to put on a spooky show, but Charlotte only giggled with delight. Seeing her bright smile, the three uncles immediately turned into a silly circus instead, juggling glowing teacups and sharing slices of warm blueberry pie until everyone laughed together.",
+      },
+      {
+        filename: "page-4.mp3",
+        text: "Down in the warm Victorian kitchen, Casper tied on a tiny white chef's apron and floated beside the stove. With a flick of his wrist, he flipped fluffy golden pancakes shaped like twinkling stars and drizzled them with sweet maple syrup. Charlotte took a warm, delicious bite and declared Casper the best midnight chef in Maine.",
+      },
+      {
+        filename: "page-5.mp3",
+        text: "Up in his secret attic playroom, where model trains chugged softly past paper-lantern moons, Casper showed Charlotte his favorite treasures. There was a glow-in-the-dark baseball, a brass telescope pointed at the Milky Way, and a scrapbook of dreams. Charlotte drew a picture of the two of them holding hands so Casper would never feel lonely again.",
+      },
+      {
+        filename: "page-6.mp3",
+        text: "Ready for a magical shortcut? Casper beamed, helping Charlotte hop into a brightly painted armchair perched on a gleaming brass track. With a gentle chime, the chair glided smoothly down through a secret library lined with floating storybooks and fairy lights, whizzing around cosy spiral curves like a bedtime rollercoaster.",
+      },
+      {
+        filename: "page-7.mp3",
+        text: "The track glided to a soft stop inside the wondrous vaulted laboratory, where rainbow-colored glass globes bubbled like a giant musical clockwork box. Resting on a velvet cushion was a crystal vial filled with shimmering Moonbeam Dream-Dust, made to bring peaceful wishes and happy dreams to every child in town.",
+      },
+      {
+        filename: "page-8.mp3",
+        text: "Together, Charlotte and Casper floated up to the warm stone lighthouse overlooking the calm ocean bay of Friendship. As the golden beacon swept gently across the silver waves, Casper told stories of the constellations while the rhythmic hush of the sea sang a quiet lullaby below.",
+      },
+      {
+        filename: "page-9.mp3",
+        text: "Back in the candlelit ballroom beneath a dome of painted stars, a soft music-box melody began to play. Casper took Charlotte's hands, and together they floated three inches above the polished marble floor... twirling slowly through a shower of golden starlight. Can I keep you, my dear friend? Casper whispered with a happy sigh.",
+      },
+      {
+        filename: "page-10.mp3",
+        text: "When it was time for sleep, Casper tucked a cozy starry quilt gently around Charlotte's shoulders in the guest bedroom canopy bed. As Charlotte closed her eyes with a peaceful smile, Casper floated outside the arched moonlit window, waving a fond goodnight and watching over her sweetest dreams.",
+      },
+      {
+        filename: "closing.mp3",
+        text: "Goodnight from Whipstaff Manor. True friendship shines brighter than any moonbeam. Sleep peacefully tonight, sweet Charlotte.",
+      },
+    ],
+  },
 ];
 
 async function generateAllAudio() {
@@ -70,6 +123,11 @@ async function generateAllAudio() {
 
     for (const item of story.items) {
       const filePath = path.join(outDir, item.filename);
+      if (fs.existsSync(filePath) && fs.statSync(filePath).size > 1000) {
+        console.log(`  ⏭️ Skipping existing ${story.id}/${item.filename}`);
+        continue;
+      }
+
       const tts = new MsEdgeTTS();
       await tts.setMetadata(
         VOICE,

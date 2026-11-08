@@ -1,4 +1,4 @@
-const CACHE_NAME = "charlotte-gembook-v1";
+const CACHE_NAME = "charlotte-gembook-v2";
 
 const PRECACHE_ASSETS = [
   "/",
@@ -26,6 +26,29 @@ const PRECACHE_ASSETS = [
   "/audio/neverending-charlotte/page-9.mp3",
   "/audio/neverending-charlotte/page-10.mp3",
   "/audio/neverending-charlotte/closing.mp3",
+  "/stories/casper-charlotte/cover.png",
+  "/stories/casper-charlotte/page-1.png",
+  "/stories/casper-charlotte/page-2.png",
+  "/stories/casper-charlotte/page-3.png",
+  "/stories/casper-charlotte/page-4.png",
+  "/stories/casper-charlotte/page-5.png",
+  "/stories/casper-charlotte/page-6.png",
+  "/stories/casper-charlotte/page-7.png",
+  "/stories/casper-charlotte/page-8.png",
+  "/stories/casper-charlotte/page-9.png",
+  "/stories/casper-charlotte/page-10.png",
+  "/audio/casper-charlotte/cover.mp3",
+  "/audio/casper-charlotte/page-1.mp3",
+  "/audio/casper-charlotte/page-2.mp3",
+  "/audio/casper-charlotte/page-3.mp3",
+  "/audio/casper-charlotte/page-4.mp3",
+  "/audio/casper-charlotte/page-5.mp3",
+  "/audio/casper-charlotte/page-6.mp3",
+  "/audio/casper-charlotte/page-7.mp3",
+  "/audio/casper-charlotte/page-8.mp3",
+  "/audio/casper-charlotte/page-9.mp3",
+  "/audio/casper-charlotte/page-10.mp3",
+  "/audio/casper-charlotte/closing.mp3",
 ];
 
 self.addEventListener("install", (event) => {
