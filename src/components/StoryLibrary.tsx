@@ -125,85 +125,83 @@ export function StoryLibrary() {
             </span>
           </div>
 
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
             {STORIES.map((story) => (
               <div
                 key={story.id}
                 onClick={() => handleOpenStory(story, true)}
-                className="group relative flex flex-col sm:flex-row cursor-pointer overflow-hidden rounded-3xl border-2 border-amber-300/25 bg-gradient-to-br from-[#171a36]/90 via-[#12152b]/95 to-[#0d0f20]/95 p-5 shadow-[0_20px_60px_rgba(0,0,0,0.7)] transition-all duration-300 hover:border-amber-300/60 hover:shadow-[0_20px_70px_rgba(245,196,105,0.18)]"
+                className="group relative flex flex-col cursor-pointer overflow-hidden rounded-3xl border-2 border-amber-300/25 bg-gradient-to-br from-[#171a36]/90 via-[#12152b]/95 to-[#0d0f20]/95 p-5 shadow-[0_20px_60px_rgba(0,0,0,0.7)] transition-all duration-300 hover:border-amber-300/60 hover:shadow-[0_20px_70px_rgba(245,196,105,0.18)]"
               >
-                {/* 3D Hardcover Book Cover Preview */}
-                <div className="relative mx-auto sm:mx-0 h-60 w-44 sm:h-64 sm:w-48 shrink-0 overflow-hidden rounded-2xl border-4 border-amber-500/40 shadow-2xl transition-transform duration-500 group-hover:scale-[1.03] group-hover:-rotate-1">
-                  {/* Book Spine Highlight */}
-                  <div className="pointer-events-none absolute inset-y-0 left-0 z-20 w-4 bg-gradient-to-r from-black/50 via-white/15 to-transparent" />
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={story.coverImage}
-                    alt={story.title}
-                    className="h-full w-full object-cover"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/20" />
-                  <div className="absolute bottom-2.5 inset-x-2 text-center">
-                    <span className="inline-block rounded-full bg-amber-400/95 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-950 shadow">
-                      10 Illustrated Pages
-                    </span>
-                  </div>
-                </div>
-
-                {/* Story Details & Instant Launch Controls */}
-                <div className="mt-4 sm:mt-0 sm:ml-5 flex flex-1 flex-col justify-between">
-                  <div>
-                    <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-semibold text-amber-300">
-                      <span className="rounded-full border border-amber-400/30 bg-amber-400/10 px-2.5 py-0.5">
-                        {story.dedicatedTo}
-                      </span>
-                      <span className="flex items-center gap-1 rounded-full border border-indigo-400/30 bg-indigo-400/10 px-2.5 py-0.5 text-indigo-200">
-                        <Clock className="h-3 w-3" />
-                        {story.readingTimeMinutes} Min
-                      </span>
-                      <span className="flex items-center gap-1 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2.5 py-0.5 text-emerald-200">
-                        <Volume2 className="h-3 w-3" />
-                        AU Voice
+                <div className="flex flex-row gap-4">
+                  {/* 3D Hardcover Book Cover Preview */}
+                  <div className="relative h-44 w-32 sm:h-48 sm:w-36 shrink-0 overflow-hidden rounded-2xl border-4 border-amber-500/40 shadow-2xl transition-transform duration-500 group-hover:scale-[1.03] group-hover:-rotate-1">
+                    {/* Book Spine Highlight */}
+                    <div className="pointer-events-none absolute inset-y-0 left-0 z-20 w-4 bg-gradient-to-r from-black/50 via-white/15 to-transparent" />
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={story.coverImage}
+                      alt={story.title}
+                      className="h-full w-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/20" />
+                    <div className="absolute bottom-2 inset-x-1.5 text-center">
+                      <span className="inline-block rounded-full bg-amber-400/95 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-950 shadow">
+                        10 Pages
                       </span>
                     </div>
+                  </div>
 
-                    <h3 className="mt-2.5 font-display text-xl sm:text-2xl font-bold leading-snug text-amber-100 group-hover:text-amber-300 transition-colors">
-                      {story.title}
-                    </h3>
-                    <p className="mt-0.5 font-serif italic text-xs sm:text-sm text-amber-200/80">
-                      {story.subtitle}
-                    </p>
+                  {/* Story Title & Metadata */}
+                  <div className="flex flex-1 flex-col justify-between">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-1 text-[10px] font-semibold text-amber-300">
+                        <span className="rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5">
+                          {story.dedicatedTo}
+                        </span>
+                        <span className="flex items-center gap-1 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5 text-emerald-200">
+                          <Volume2 className="h-3 w-3" />
+                          AU Voice
+                        </span>
+                      </div>
 
-                    <p className="mt-2.5 line-clamp-3 font-serif text-xs sm:text-sm leading-relaxed text-amber-100/80">
+                      <h3 className="mt-2 font-display text-lg sm:text-xl font-bold leading-snug text-amber-100 group-hover:text-amber-300 transition-colors">
+                        {story.title}
+                      </h3>
+                      <p className="mt-0.5 font-serif italic text-xs text-amber-200/80">
+                        {story.subtitle}
+                      </p>
+                    </div>
+
+                    <p className="mt-2 line-clamp-3 font-serif text-xs leading-relaxed text-amber-100/75">
                       {story.summary}
                     </p>
                   </div>
+                </div>
 
-                  {/* Primary Action Buttons */}
-                  <div className="mt-4 flex flex-wrap items-center gap-2.5 pt-3 border-t border-white/10">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleOpenStory(story, true);
-                      }}
-                      className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-400 via-amber-500 to-amber-400 px-4 py-2.5 text-xs sm:text-sm font-bold text-slate-950 shadow-[0_8px_20px_rgba(245,158,11,0.3)] transition hover:brightness-110 active:scale-95"
-                    >
-                      <Play className="h-4 w-4 fill-current shrink-0" />
-                      <span>Autoplay Story</span>
-                    </button>
+                {/* Primary Action Buttons */}
+                <div className="mt-4 flex items-center gap-2.5 pt-3 border-t border-white/10">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleOpenStory(story, true);
+                    }}
+                    className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-400 via-amber-500 to-amber-400 px-4 py-2.5 text-xs sm:text-sm font-bold text-slate-950 shadow-[0_8px_20px_rgba(245,158,11,0.3)] transition hover:brightness-110 active:scale-95"
+                  >
+                    <Play className="h-4 w-4 fill-current shrink-0" />
+                    <span>Autoplay Story</span>
+                  </button>
 
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleOpenStory(story, false);
-                      }}
-                      className="flex items-center justify-center gap-1.5 rounded-xl border border-amber-300/30 bg-white/5 px-3.5 py-2.5 text-xs font-semibold text-amber-100 transition hover:bg-white/15 active:scale-95"
-                      title="Open book without auto-turning pages"
-                    >
-                      <BookOpen className="h-3.5 w-3.5 text-amber-300" />
-                      <span>Manual</span>
-                    </button>
-                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleOpenStory(story, false);
+                    }}
+                    className="flex items-center justify-center gap-1.5 rounded-xl border border-amber-300/30 bg-white/5 px-3.5 py-2.5 text-xs font-semibold text-amber-100 transition hover:bg-white/15 active:scale-95"
+                    title="Open book without auto-turning pages"
+                  >
+                    <BookOpen className="h-3.5 w-3.5 text-amber-300" />
+                    <span>Manual</span>
+                  </button>
                 </div>
               </div>
             ))}

@@ -1,4 +1,4 @@
-const CACHE_NAME = "charlotte-gembook-v2";
+const CACHE_NAME = "charlotte-gembook-v3";
 
 const PRECACHE_ASSETS = [
   "/",
@@ -49,6 +49,29 @@ const PRECACHE_ASSETS = [
   "/audio/casper-charlotte/page-9.mp3",
   "/audio/casper-charlotte/page-10.mp3",
   "/audio/casper-charlotte/closing.mp3",
+  "/stories/labyrinth-charlotte/cover.png",
+  "/stories/labyrinth-charlotte/page-1.png",
+  "/stories/labyrinth-charlotte/page-2.png",
+  "/stories/labyrinth-charlotte/page-3.png",
+  "/stories/labyrinth-charlotte/page-4.png",
+  "/stories/labyrinth-charlotte/page-5.png",
+  "/stories/labyrinth-charlotte/page-6.png",
+  "/stories/labyrinth-charlotte/page-7.png",
+  "/stories/labyrinth-charlotte/page-8.png",
+  "/stories/labyrinth-charlotte/page-9.png",
+  "/stories/labyrinth-charlotte/page-10.png",
+  "/audio/labyrinth-charlotte/cover.mp3",
+  "/audio/labyrinth-charlotte/page-1.mp3",
+  "/audio/labyrinth-charlotte/page-2.mp3",
+  "/audio/labyrinth-charlotte/page-3.mp3",
+  "/audio/labyrinth-charlotte/page-4.mp3",
+  "/audio/labyrinth-charlotte/page-5.mp3",
+  "/audio/labyrinth-charlotte/page-6.mp3",
+  "/audio/labyrinth-charlotte/page-7.mp3",
+  "/audio/labyrinth-charlotte/page-8.mp3",
+  "/audio/labyrinth-charlotte/page-9.mp3",
+  "/audio/labyrinth-charlotte/page-10.mp3",
+  "/audio/labyrinth-charlotte/closing.mp3",
 ];
 
 self.addEventListener("install", (event) => {

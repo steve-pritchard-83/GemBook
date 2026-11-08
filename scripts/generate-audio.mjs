@@ -112,6 +112,59 @@ const STORY_AUDIO_SEGMENTS = [
       },
     ],
   },
+  {
+    id: "labyrinth-charlotte",
+    items: [
+      {
+        filename: "cover.mp3",
+        text: "Charlotte and the Starlight Labyrinth. A Magical Journey to the Crystal Castle. Dedicated with love to Charlotte.",
+      },
+      {
+        filename: "page-1.mp3",
+        text: "Outside seven-year-old Charlotte's bedroom window, a snowy white barn owl with feathers like spun moonbeams perched upon the sill. As Charlotte brushed back her golden-blonde curls, the owl gently rolled a floating glass crystal orb across her quilt. Inside the crystal swirled a miniature castle of starlight and a shimmering golden maze.",
+      },
+      {
+        filename: "page-2.mp3",
+        text: "With a soft chime, the bedroom walls dissolved into tall, twinkling hedges dusted with silver moss. Perched on a mossy stone ledge was a tiny fuzzy blue caterpillar wearing a miniature red scarf. Ello! he squeaked cheerfully, tipping his tiny cap. Come inside and have a nice warm cup of bedtime tea before you explore the maze!",
+      },
+      {
+        filename: "page-3.mp3",
+        text: "At the end of the mossy lane stood two ornate brass doors with friendly, sleepy lion knockers. One knocker mumbled with a big brass ring in his mouth while the other chuckled, Only a clever seven-year-old with a kind smile knows which door leads to magic! Charlotte politely tapped the golden ring, and the doors swung open to a garden of glowing crystals.",
+      },
+      {
+        filename: "page-4.mp3",
+        text: "Instead of a dark shaft, Charlotte floated gently downward through a tunnel of soft, velvet-gloved Helping Hands that cradled her like a cloud of warm pillows. Which way, little princess? Up or down? they whispered kindly, before setting her feet softly upon a path of sparkling rose-quartz cobblestones.",
+      },
+      {
+        filename: "page-5.mp3",
+        text: "Sitting beside a willow tree was Ludo, a big, cuddly, cinnamon-furred gentle giant with curved horns and the warmest, kindest eyes. When Charlotte offered him a wildflower and a gentle hug, Ludo's face lit up with a huge smile. Charlotte... friend! he rumbled softly, lifting her onto his fluffy shoulder.",
+      },
+      {
+        filename: "page-6.mp3",
+        text: "When a bubbly lavender stream blocked their path, Ludo tilted back his head and let out a deep, musical hum that echoed like a cello. Slowly, smooth glowing river stones floated up from the water and arranged themselves into a shimmering bridge so Charlotte could skip safely across.",
+      },
+      {
+        filename: "page-7.mp3",
+        text: "At the edge of the Whispering Woods, a gallant little fox-terrier knight in a feathered hat, Sir Didymus, bowed from atop his big, fluffy sheepdog steed, Ambrosius. Fear not, fair Lady Charlotte! Sir Didymus declared proudly, while friendly Ambrosius wagged his tail and gave Charlotte's hand a big, ticklish puppy kiss.",
+      },
+      {
+        filename: "page-8.mp3",
+        text: "As they neared the castle, a floating bubble drifted past, carrying Charlotte into a dreamy masquerade ballroom lit by crystal chandeliers and silver masks. The Goblin King bowed gracefully, spinning a glowing glass orb that reflected Charlotte's own bright, brave heart... reminding her that her love for her friends was the strongest magic of all.",
+      },
+      {
+        filename: "page-9.mp3",
+        text: "Inside the shimmering Crystal Castle, staircases wound playfully in every direction like a giant puzzle box under the stars. With a calm breath, Charlotte spoke the gentle bedtime words of power: You have no power over my dreams, only kindness rules here! Instantly, the crystal stairs glowed with warm golden light, leading straight home.",
+      },
+      {
+        filename: "page-10.mp3",
+        text: "Back in her warm bedroom under her starry quilt, Charlotte smiled as Ludo, Sir Didymus, Ambrosius, and the little blue caterpillar waved fondly from the moonlit mirror. Should you ever need us, Charlotte, we are always in your dreams, they whispered softly, as the white owl soared into the peaceful night sky.",
+      },
+      {
+        filename: "closing.mp3",
+        text: "Should You Need Us, Sweet Charlotte. Remember that your friends in the Starlight Labyrinth are always inside your heart whenever you close your eyes and dream. Goodnight, Charlotte.",
+      },
+    ],
+  },
 ];
 
 async function generateAllAudio() {
