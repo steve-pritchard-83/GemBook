@@ -27,8 +27,10 @@ export function StoryLibrary() {
       if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
         await document.documentElement.requestFullscreen();
       }
-      // Attempt landscape orientation lock on Galaxy Tab Chrome
+      // Only attempt landscape orientation lock on tablet/wide screens, leaving portrait phones in portrait
       if (
+        typeof window !== "undefined" &&
+        window.innerWidth >= 680 &&
         typeof screen !== "undefined" &&
         "orientation" in screen &&
         // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -8,7 +8,7 @@ export default function manifest(): MetadataRoute.Manifest {
       "A magical landscape bedtime picture book & voiceover reader for Charlotte.",
     start_url: "/?autoplay=true",
     display: "fullscreen",
-    orientation: "landscape",
+    orientation: "any",
     background_color: "#090b16",
     theme_color: "#090b16",
     categories: ["books", "kids", "education", "entertainment"],
