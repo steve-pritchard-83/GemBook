@@ -54,6 +54,7 @@ export function ColorByNumbersCanvas({
   palette,
   hints,
 }: ColorByNumbersCanvasProps) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const originalImageDataRef = useRef<ImageData | null>(null);
   const undoStackRef = useRef<ImageData[]>([]);
@@ -69,8 +70,45 @@ export function ColorByNumbersCanvas({
   const [canUndo, setCanUndo] = useState(false);
   const [paintCount, setPaintCount] = useState(0);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [stageSize, setStageSize] = useState<{ width: number; height: number }>(
+    { width: 360, height: 270 }
+  );
 
   const storageKey = `charlotte-gembook-coloring-${storyId}-v1`;
+
+  // Lock the interactive stage to an exact 4:3 (900x675) pixel box via ResizeObserver
+  // so there is ZERO object-contain letterboxing drift as the stylus moves away from the center!
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const updateStage = () => {
+      const availW = el.clientWidth;
+      const availH = el.clientHeight;
+      if (availW <= 0 || availH <= 0) return;
+
+      const targetAspect = 900 / 675; // 4:3
+      let w = availW;
+      let h = w / targetAspect;
+      if (h > availH) {
+        h = availH;
+        w = h * targetAspect;
+      }
+      setStageSize({
+        width: Math.max(160, Math.floor(w)),
+        height: Math.max(120, Math.floor(h)),
+      });
+    };
+
+    updateStage();
+    const ro = new ResizeObserver(updateStage);
+    ro.observe(el);
+    window.addEventListener("resize", updateStage);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", updateStage);
+    };
+  }, []);
 
   /**
    * Inspect canvas pixels at each hint's (x%, y%) coordinate.
@@ -242,11 +280,36 @@ export function ColorByNumbersCanvas({
   const getCanvasCoords = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current!;
     const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
+
+    // Compute exact rendered bitmap rectangle inside rect so there is zero edge drift
+    const canvasAspect = canvas.width / canvas.height;
+    const rectAspect = rect.width / rect.height;
+
+    let renderWidth = rect.width;
+    let renderHeight = rect.height;
+    let offsetX = 0;
+    let offsetY = 0;
+
+    if (rectAspect > canvasAspect + 0.001) {
+      renderWidth = rect.height * canvasAspect;
+      offsetX = (rect.width - renderWidth) / 2;
+    } else if (rectAspect < canvasAspect - 0.001) {
+      renderHeight = rect.width / canvasAspect;
+      offsetY = (rect.height - renderHeight) / 2;
+    }
+
+    const relX = e.clientX - rect.left - offsetX;
+    const relY = e.clientY - rect.top - offsetY;
+
     return {
-      x: Math.floor((e.clientX - rect.left) * scaleX),
-      y: Math.floor((e.clientY - rect.top) * scaleY),
+      x: Math.min(
+        canvas.width - 1,
+        Math.max(0, Math.round((relX / renderWidth) * canvas.width))
+      ),
+      y: Math.min(
+        canvas.height - 1,
+        Math.max(0, Math.round((relY / renderHeight) * canvas.height))
+      ),
     };
   };
 
@@ -664,65 +727,75 @@ export function ColorByNumbersCanvas({
       </div>
 
       {/* Interactive Coloring Canvas + Non-Obstructive Auto-Vanishing Number Hints */}
-      <div className="relative my-1.5 flex-1 min-h-0 w-full overflow-hidden rounded-xl border-2 border-amber-800/35 bg-white shadow-inner">
-        <canvas
-          ref={canvasRef}
-          onPointerDown={handleCanvasPointerDown}
-          onPointerMove={handleCanvasPointerMove}
-          onPointerUp={handleCanvasPointerUp}
-          onPointerCancel={handleCanvasPointerUp}
-          className="h-full w-full cursor-crosshair touch-none object-contain"
-        />
+      <div
+        ref={containerRef}
+        className="relative my-1.5 flex flex-1 min-h-0 w-full items-center justify-center overflow-hidden"
+      >
+        <div
+          style={{
+            width: `${stageSize.width}px`,
+            height: `${stageSize.height}px`,
+          }}
+          className="relative overflow-hidden rounded-xl border-2 border-amber-800/35 bg-white shadow-inner"
+        >
+          <canvas
+            ref={canvasRef}
+            onPointerDown={handleCanvasPointerDown}
+            onPointerMove={handleCanvasPointerMove}
+            onPointerUp={handleCanvasPointerUp}
+            onPointerCancel={handleCanvasPointerUp}
+            className="block h-full w-full cursor-crosshair touch-none"
+          />
 
-        {/* Non-Obstructive Number Guide Overlay:
-            - Automatically vanishes as soon as that region is painted!
-            - In 'smart' mode, only the active paint pot's unpainted regions show a delicate micro-pill;
-              other unpainted numbers render as tiny borderless watermarks so they never block the drawing. */}
-        {guideMode !== "off" &&
-          hints.map((hint, idx) => {
-            // Once painted, hide the number completely so Charlotte sees her clean artwork!
-            if (completedHints[idx]) {
-              return null;
-            }
+          {/* Non-Obstructive Number Guide Overlay:
+              - Sits inside the exact 4:3 stageSize box so % coordinates match the 900x675 bitmap 1:1 edge-to-edge!
+              - Automatically vanishes as soon as that region is painted! */}
+          {guideMode !== "off" &&
+            hints.map((hint, idx) => {
+              // Once painted, hide the number completely so Charlotte sees her clean artwork!
+              if (completedHints[idx]) {
+                return null;
+              }
 
-            const matchingSwatch = palette.find(
-              (p) => p.number === hint.number
-            );
-            const isSelected = selectedSwatch.number === hint.number;
+              const matchingSwatch = palette.find(
+                (p) => p.number === hint.number
+              );
+              const isSelected = selectedSwatch.number === hint.number;
 
-            if (guideMode === "smart" && !isSelected) {
-              // Subtle borderless watermark for inactive numbers: zero box/circle obstruction
+              if (guideMode === "smart" && !isSelected) {
+                // Subtle borderless watermark for inactive numbers: zero box/circle obstruction
+                return (
+                  <div
+                    key={idx}
+                    style={{ left: `${hint.x}%`, top: `${hint.y}%` }}
+                    className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 text-[9px] font-extrabold text-slate-600/55 drop-shadow-[0_0_2px_rgba(255,255,255,0.95)] transition-opacity"
+                  >
+                    {hint.number}
+                  </div>
+                );
+              }
+
               return (
                 <div
                   key={idx}
                   style={{ left: `${hint.x}%`, top: `${hint.y}%` }}
-                  className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 text-[9px] font-extrabold text-slate-600/55 drop-shadow-[0_0_2px_rgba(255,255,255,0.95)] transition-opacity"
+                  className={`pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 flex items-center justify-center rounded-full transition-all ${
+                    isSelected
+                      ? "h-4 w-4 sm:h-4.5 sm:w-4.5 border border-amber-900/80 bg-white/80 text-[9px] sm:text-[10px] font-extrabold text-slate-950 shadow-sm ring-2 ring-amber-400/80 animate-pulse"
+                      : "h-3.5 w-3.5 border border-slate-500/40 bg-white/65 text-[8px] font-bold text-slate-800/80"
+                  }`}
                 >
-                  {hint.number}
+                  <span>{hint.number}</span>
+                  {isSelected && matchingSwatch && (
+                    <span
+                      className="absolute -bottom-0.5 -right-0.5 h-1.5 w-1.5 rounded-full border border-white"
+                      style={{ backgroundColor: matchingSwatch.hex }}
+                    />
+                  )}
                 </div>
               );
-            }
-
-            return (
-              <div
-                key={idx}
-                style={{ left: `${hint.x}%`, top: `${hint.y}%` }}
-                className={`pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 flex items-center justify-center rounded-full transition-all ${
-                  isSelected
-                    ? "h-4 w-4 sm:h-4.5 sm:w-4.5 border border-amber-900/80 bg-white/80 text-[9px] sm:text-[10px] font-extrabold text-slate-950 shadow-sm ring-2 ring-amber-400/80 animate-pulse"
-                    : "h-3.5 w-3.5 border border-slate-500/40 bg-white/65 text-[8px] font-bold text-slate-800/80"
-                }`}
-              >
-                <span>{hint.number}</span>
-                {isSelected && matchingSwatch && (
-                  <span
-                    className="absolute -bottom-0.5 -right-0.5 h-1.5 w-1.5 rounded-full border border-white"
-                    style={{ backgroundColor: matchingSwatch.hex }}
-                  />
-                )}
-              </div>
-            );
-          })}
+            })}
+        </div>
       </div>
 
       {/* Numbered Paint Bucket Palette for Galaxy Tab Stylus */}

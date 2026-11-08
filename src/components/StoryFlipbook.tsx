@@ -343,7 +343,7 @@ export function StoryFlipbook({
 
   /**
    * Plays an MP3 audio clip and ONLY invokes `onDone` when the audio file has genuinely finished playing to the end
-   * (verified via `audio.ended` / `currentTime >= duration - 0.15` and guarded by `playbackRunIdRef`).
+   * (verified via `audio.ended`, `AUDIO_SENTENCE_TIMINGS` duration floor, and guarded by `playbackRunIdRef`).
    */
   const playAudioClip = useCallback(
     (
@@ -360,37 +360,62 @@ export function StoryFlipbook({
       audio.volume = isMuted ? 0 : 1;
       audioRef.current = audio;
 
+      const knownDurationSec = AUDIO_SENTENCE_TIMINGS[audioUrl]?.duration || 0;
+      let playStartedAt = Date.now();
       let completed = false;
 
       // Track live playback progress for sentence karaoke highlighting
       audio.ontimeupdate = () => {
         if (runId !== playbackRunIdRef.current) return;
-        if (audio.duration && Number.isFinite(audio.duration) && audio.duration > 0) {
-          setActiveReadingProgress(
-            Math.min(1, audio.currentTime / audio.duration)
-          );
+        const dur =
+          audio.duration && Number.isFinite(audio.duration) && audio.duration > 0
+            ? audio.duration
+            : knownDurationSec;
+        if (dur > 0) {
+          setActiveReadingProgress(Math.min(1, audio.currentTime / dur));
         }
       };
 
       // Strictly verify the audio truly reached the end before allowing the page turn callback
       audio.onended = () => {
         if (completed || runId !== playbackRunIdRef.current) return;
-        // Guard against any browser firing `ended` prematurely while currentTime is far before duration
-        if (
-          audio.duration &&
-          Number.isFinite(audio.duration) &&
-          audio.duration > 1 &&
-          audio.currentTime < audio.duration - 0.35
-        ) {
+        const targetDuration =
+          audio.duration && Number.isFinite(audio.duration) && audio.duration > 1
+            ? audio.duration
+            : knownDurationSec;
+
+        // Guard against any browser firing `ended` prematurely while currentTime is before duration
+        if (targetDuration > 1 && audio.currentTime < targetDuration - 0.35) {
           audio.play().catch(() => {
-            completed = true;
-            onDone();
+            const elapsedSec = (Date.now() - playStartedAt) / 1000;
+            const remainingMs = Math.max(
+              0,
+              Math.ceil((targetDuration - elapsedSec) * 1000)
+            );
+            sequenceTimeoutRef.current = setTimeout(() => {
+              if (completed || runId !== playbackRunIdRef.current) return;
+              completed = true;
+              setActiveReadingProgress(1);
+              onDone();
+            }, remainingMs);
           });
           return;
         }
+
+        // Also enforce acoustic duration floor so trailing words/reverb are never clipped
+        const elapsedSec = (Date.now() - playStartedAt) / 1000;
+        const remainingFloorMs =
+          knownDurationSec > 0 && elapsedSec < knownDurationSec - 0.15
+            ? Math.ceil((knownDurationSec - elapsedSec) * 1000) + 150
+            : 150;
+
         completed = true;
         setActiveReadingProgress(1);
-        onDone();
+        sequenceTimeoutRef.current = setTimeout(() => {
+          if (runId === playbackRunIdRef.current) {
+            onDone();
+          }
+        }, remainingFloorMs);
       };
 
       audio.onerror = () => {
@@ -399,11 +424,16 @@ export function StoryFlipbook({
         speakWithWebSpeechFallback(fallbackText, runId, onDone);
       };
 
-      audio.play().catch(() => {
-        if (completed || runId !== playbackRunIdRef.current) return;
-        completed = true;
-        speakWithWebSpeechFallback(fallbackText, runId, onDone);
-      });
+      audio
+        .play()
+        .then(() => {
+          playStartedAt = Date.now();
+        })
+        .catch(() => {
+          if (completed || runId !== playbackRunIdRef.current) return;
+          completed = true;
+          speakWithWebSpeechFallback(fallbackText, runId, onDone);
+        });
     },
     [isMuted, speakWithWebSpeechFallback]
   );
@@ -634,22 +664,10 @@ export function StoryFlipbook({
     };
   }, [stopCurrentAudio]);
 
-  // Jump straight to Story Page 1 (index 2) when opening if initialAutoplay is true
+  // Keep the Cover & Dedication spread open until cover.mp3 (title audio) finishes playing 100%
   const handleBookInit = useCallback(() => {
-    if (initialAutoplay && flipBookRef.current && currentSpreadIndex === 0) {
-      setTimeout(() => {
-        try {
-          const pf = flipBookRef.current?.pageFlip();
-          if (pf) {
-            soundEngine.playPageFlip();
-            pf.flip(2); // Open directly to Page 1!
-          }
-        } catch {
-          // Ignore
-        }
-      }, 650);
-    }
-  }, [initialAutoplay, currentSpreadIndex]);
+    // Do not auto-flip prematurely here; the main playback effect waits for cover.mp3 to finish before turning to Page 1.
+  }, []);
 
   const toggleFullscreen = async () => {
     try {
