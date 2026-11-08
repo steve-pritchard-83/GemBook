@@ -1,0 +1,31 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-cinzel: "Cinzel Decorative", "Palatino Linotype", Georgia, serif;
+  --font-lora: "Lora", Georgia, "Times New Roman", serif;
+  --font-quicksand: "Quicksand", system-ui, -apple-system, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #070914;
+  color: #fdfaf3;
+  overscroll-behavior: none;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Smooth page shadow inside StPageFlip */
+.gembook-flipbook {
+  margin: 0 auto;
+}
