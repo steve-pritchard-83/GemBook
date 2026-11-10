@@ -1,6 +1,7 @@
 import { NEVERENDING_CHARLOTTE_STORY } from "./stories/neverending-charlotte";
 import { CASPER_CHARLOTTE_STORY } from "./stories/casper-charlotte";
 import { LABYRINTH_CHARLOTTE_STORY } from "./stories/labyrinth-charlotte";
+import { GOOSEBUMPS_CHARLOTTE_STORY } from "./stories/goosebumps-charlotte";
 import {
   NumberHintMarker,
   PaintSwatch,
@@ -46,6 +47,7 @@ export const STORIES: Story[] = [
   NEVERENDING_CHARLOTTE_STORY,
   CASPER_CHARLOTTE_STORY,
   LABYRINTH_CHARLOTTE_STORY,
+  GOOSEBUMPS_CHARLOTTE_STORY,
 ];
 
 export function getStoryById(id: string): Story | undefined {

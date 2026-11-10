@@ -1,5 +1,5 @@
-const SHELL_CACHE_NAME = "charlotte-gembook-shell-v5";
-const MEDIA_CACHE_NAME = "charlotte-gembook-media-v5";
+const SHELL_CACHE_NAME = "charlotte-gembook-shell-v6";
+const MEDIA_CACHE_NAME = "charlotte-gembook-media-v6";
 
 // Lightweight app shell & book covers precached immediately on install
 const SHELL_PRECACHE_ASSETS = [
@@ -10,9 +10,11 @@ const SHELL_PRECACHE_ASSETS = [
   "/stories/neverending-charlotte/cover.png",
   "/stories/casper-charlotte/cover.png",
   "/stories/labyrinth-charlotte/cover.png",
+  "/stories/goosebumps-charlotte/cover.png",
   "/audio/neverending-charlotte/cover.mp3",
   "/audio/casper-charlotte/cover.mp3",
   "/audio/labyrinth-charlotte/cover.mp3",
+  "/audio/goosebumps-charlotte/cover.mp3",
 ];
 
 self.addEventListener("install", (event) => {

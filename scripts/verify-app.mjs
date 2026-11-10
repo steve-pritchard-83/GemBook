@@ -5,6 +5,7 @@ const STORY_IDS = [
   "neverending-charlotte",
   "casper-charlotte",
   "labyrinth-charlotte",
+  "goosebumps-charlotte",
 ];
 
 let passed = 0;

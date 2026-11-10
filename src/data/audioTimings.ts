@@ -297,5 +297,104 @@ export const AUDIO_SENTENCE_TIMINGS: Record<string, AudioSentenceTiming> = {
       14.35,
       16.28
     ]
+  },
+  "/audio/goosebumps-charlotte/cover.mp3": {
+    "duration": 12.49,
+    "sentenceEndTimes": [
+      4.6,
+      6.14,
+      6.35,
+      9.23,
+      12.49
+    ]
+  },
+  "/audio/goosebumps-charlotte/page-1.mp3": {
+    "duration": 34.04,
+    "sentenceEndTimes": [
+      14.21,
+      16.68,
+      17.25,
+      29.04,
+      34.04
+    ]
+  },
+  "/audio/goosebumps-charlotte/page-2.mp3": {
+    "duration": 30.13,
+    "sentenceEndTimes": [
+      10.43,
+      19.14,
+      27.22,
+      30.13
+    ]
+  },
+  "/audio/goosebumps-charlotte/page-3.mp3": {
+    "duration": 30.6,
+    "sentenceEndTimes": [
+      12.19,
+      25.2,
+      30.6
+    ]
+  },
+  "/audio/goosebumps-charlotte/page-4.mp3": {
+    "duration": 27.85,
+    "sentenceEndTimes": [
+      14.3,
+      27.85
+    ]
+  },
+  "/audio/goosebumps-charlotte/page-5.mp3": {
+    "duration": 31.08,
+    "sentenceEndTimes": [
+      5.76,
+      13.33,
+      31.08
+    ]
+  },
+  "/audio/goosebumps-charlotte/page-6.mp3": {
+    "duration": 32.05,
+    "sentenceEndTimes": [
+      14.93,
+      32.05
+    ]
+  },
+  "/audio/goosebumps-charlotte/page-7.mp3": {
+    "duration": 33.4,
+    "sentenceEndTimes": [
+      13.08,
+      33.4
+    ]
+  },
+  "/audio/goosebumps-charlotte/page-8.mp3": {
+    "duration": 27.53,
+    "sentenceEndTimes": [
+      12.46,
+      27.53
+    ]
+  },
+  "/audio/goosebumps-charlotte/page-9.mp3": {
+    "duration": 32.6,
+    "sentenceEndTimes": [
+      13.85,
+      24.22,
+      32.6
+    ]
+  },
+  "/audio/goosebumps-charlotte/page-10.mp3": {
+    "duration": 34.01,
+    "sentenceEndTimes": [
+      11.19,
+      16.46,
+      20.44,
+      32.07,
+      34.01
+    ]
+  },
+  "/audio/goosebumps-charlotte/closing.mp3": {
+    "duration": 14.96,
+    "sentenceEndTimes": [
+      4.01,
+      11.72,
+      14.96
+    ]
   }
 };

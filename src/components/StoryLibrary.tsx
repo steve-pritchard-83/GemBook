@@ -170,7 +170,7 @@ export function StoryLibrary() {
             </span>
           </div>
 
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             {STORIES.map((story) => {
               const isCompleted = completedStoryIds.includes(story.id);
 

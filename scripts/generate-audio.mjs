@@ -187,6 +187,59 @@ const STORY_AUDIO_SEGMENTS = [
       },
     ],
   },
+  {
+    id: "goosebumps-charlotte",
+    items: [
+      {
+        filename: "cover.mp3",
+        text: "Charlotte and the Goosebumps Midnight Carnival. A Magical R. L. Stine Storybook Adventure. Dedicated with love to Charlotte.",
+      },
+      {
+        filename: "page-1.mp3",
+        text: "Snowflakes drifted softly past the Victorian house in Madison, Delaware, as seven-year-old Charlotte brushed a lock of golden-blonde hair behind her ear. Inside the warm study, author R. L. Stine adjusted his glasses over his black turtleneck sweater and showed Charlotte a shelf of leather-bound Goosebumps manuscripts... each one sealed with a gleaming golden brass lock.",
+      },
+      {
+        filename: "page-2.mp3",
+        text: "With a gentle click, one brass lock popped open and a swirl of emerald and golden stardust floated into the room. Out hopped Slappy the Dummy in his dapper black three-piece suit, red vest, and bright red bow tie. Instead of being spooky, Slappy bowed like a cheerful ringmaster and grinned, Good evening, Charlotte! Ready for a midnight storybook parade?",
+      },
+      {
+        filename: "page-3.mp3",
+        text: "A second manuscript opened with a puff of glittering frost, and out bounded the huge, fluffy white Abominable Snowman of Pasadena! When Charlotte offered him a mug of warm marshmallow cocoa, the friendly giant Yeti beamed with delight and blew a gentle breath of winter magic... turning the parlor rug into a sparkling miniature ice-skating rink.",
+      },
+      {
+        filename: "page-4.mp3",
+        text: "Down in the cozy kitchen, a dozen tiny ceramic Lawn Gnomes with pointy red hats, fluffy white beards, and blue tunics tumbled cheerfully out of the pantry. Giggling in squeaky harmony, the little gnomes stacked on top of one another's shoulders like circus acrobats to help Charlotte frost a tray of warm, star-shaped sugar cookies.",
+      },
+      {
+        filename: "page-5.mp3",
+        text: "Outside on the moonlit driveway waited the Haunted Car... a sleek vintage turquoise-and-chrome convertible with friendly glowing headlights. Its doors swung open politely all by themselves as Charlotte, Mister Stine, and Slappy hopped inside, gliding smoothly along the snowy avenue while the dashboard radio hummed a gentle lullaby.",
+      },
+      {
+        filename: "page-6.mp3",
+        text: "Beside the snowy town park bounded the Werewolf of Fever Swamp, wearing his signature torn blue jean shorts and bright red-and-white high-top sneakers! Far from ferocious, the big shaggy werewolf wagged his fluffy tail like an oversized golden retriever, happily fetching a glowing moonbeam ball that Charlotte tossed across the lawn.",
+      },
+      {
+        filename: "page-7.mp3",
+        text: "Towering above the twinkling streetlights stood the Giant Praying Mantis from Shock Street, its emerald-green wings shimmering in the starlight. With a polite bow of its big amber eyes, the friendly mantis lowered its front legs like a magical staircase, carrying Charlotte, Mister Stine, and Slappy high over the snowy treetops while chirping a peaceful cricket song.",
+      },
+      {
+        filename: "page-8.mp3",
+        text: "In the heart of the winter woods, the old amusement park glowed with thousands of warm golden fairy lights and a towering Ferris wheel. Below the carousel, the rosy-pink Blob bounced softly like a giant sparkling jelly pillow where the Lawn Gnomes and the big white Yeti did happy bedtime somersaults.",
+      },
+      {
+        filename: "page-9.mp3",
+        text: "High in the top gondola of the glowing Ferris wheel, Mister Stine placed his vintage silver-and-black portable typewriter into Charlotte's lap. Together they tapped the final cosy sentence: And every Goosebumps friend drifted safely home for sweet dreams. Ribbons of emerald and golden starlight swirled magically from the paper into the night sky.",
+      },
+      {
+        filename: "page-10.mp3",
+        text: "One by one, the big white Yeti, the sneaker-wearing Werewolf, the Giant Mantis, the red-hatted Lawn Gnomes, and Slappy... tipping his red bow tie in a fond salute... swirled peacefully back into the glowing book. Back under her warm starry quilt, Charlotte smiled sleepily as Mister Stine clicked the golden brass lock shut for the night. Goodnight, Charlotte.",
+      },
+      {
+        filename: "closing.mp3",
+        text: "Sweet Dreams from Madison, Delaware. Every storybook monster is tucked safely inside the golden pages tonight. Sleep peacefully, sweet Charlotte.",
+      },
+    ],
+  },
 ];
 
 let modelCursor = 0;
